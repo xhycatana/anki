@@ -142,6 +142,8 @@
               <button id="btn-show-help" class="hover:text-black underline transition-colors focus:outline-none">
                 使い方
               </button>
+              <span>・</span>
+              <span class="cursor-default select-none font-mono">v3.1.0</span>
             </div>
             
             <!-- 初期状態は非表示、例ボタンを押した時のみ展開 -->
@@ -604,13 +606,11 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
             this.activatePenOnlyMode();
           }
           
-          // ★【バグ修正の核心：手のひらの強制解放と割り込み】
-          // もしすでに指（touch）等で描画中かつ、新しく検知したペンのポインターIDと異なる場合、
-          // 既存の指の描画ポインターキャプチャを明示的に解放・強制破棄して、完全に描画を一旦停止します。
+          // ★【競合の強制解放システム】
+          // 指などが画面に触れて誤検知している最中でも、Pencilの新たなポインターイベントが入った瞬間に、
+          // 以前のポインターを強制的に切断・破棄して、直ちにPencilを「activePointerId」に割り当てます。
+          // これにより、ポインターキャプチャによる前のポインター解放の遅延を待つことなく上書きします。
           if (this.drawing && this.activePointerId !== e.pointerId) {
-            try {
-              this.canvas.releasePointerCapture(this.activePointerId);
-            } catch (err) {}
             this.drawing = false;
             this.activePointerId = null;
           }
@@ -625,12 +625,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
 
         // 描画ステートを開始
         this.drawing = true;
-        this.activePointerId = e.pointerId; // 描画中のポインターIDをロック
-
-        // 画面の端など、外へ引っ張られたときもポインター情報をロスしないようにキャプチャをバインド
-        try {
-          this.canvas.setPointerCapture(e.pointerId);
-        } catch (err) {}
+        this.activePointerId = e.pointerId; // 新しい有効なポインターIDを即時適用
 
         const pos = this.getPointerPos(e);
         this.lastX = pos.x;
@@ -672,9 +667,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         // 終了しようとしているポインターIDが、現在お絵描き中のものと一致している場合のみ終了
         if (e && e.pointerId === this.activePointerId) {
           this.drawing = false;
-          try {
-            this.canvas.releasePointerCapture(e.pointerId);
-          } catch (err) {}
           this.activePointerId = null;
         } else if (!e) {
           // フォールバック
