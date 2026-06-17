@@ -542,12 +542,29 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         this.canvas.addEventListener('pointerup', (e) => this.stopDrawing(e));
         this.canvas.addEventListener('pointercancel', (e) => this.stopDrawing(e));
 
+        // ★追加：ホバー(画面スレスレにペンを近づけた状態)で先回りしてPencilを検知し、手のひらが触れる前にロックを起動
+        this.canvas.addEventListener('pointerover', (e) => this.detectPencilHover(e));
+        this.canvas.addEventListener('pointerenter', (e) => this.detectPencilHover(e));
+
         // ウィンドウリサイズ対応
         this.resizeTimeout = null;
         window.addEventListener('resize', () => {
           clearTimeout(this.resizeTimeout);
           this.resizeTimeout = setTimeout(() => this.resizeCanvas(), 100);
         });
+      }
+
+      // Apple Pencilのホバー（近接ホバー）を検知して先回りでペン専用モードを有効化
+      detectPencilHover(e) {
+        if (e.pointerType === 'pen' && !this.penOnlyMode) {
+          this.activatePenOnlyMode();
+        }
+      }
+
+      activatePenOnlyMode() {
+        this.penOnlyMode = true;
+        pencilModeIndicator.classList.remove('bg-slate-200');
+        pencilModeIndicator.classList.add('bg-emerald-500');
       }
 
       // キャンバスサイズの初期化・最適化
@@ -584,20 +601,25 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         // 一度でも Apple Pencil (pointerType === 'pen') を検知したら専用ロックをONにする
         if (e.pointerType === 'pen') {
           if (!this.penOnlyMode) {
-            this.penOnlyMode = true;
-            // ツールバーの極小インジケーターをエメラルドグリーンにしてONを明示
-            pencilModeIndicator.classList.remove('bg-slate-200');
-            pencilModeIndicator.classList.add('bg-emerald-500');
+            this.activatePenOnlyMode();
           }
           
-          // ★超重要：もしすでに指（touch）等で描画フラグが立っていた場合、競合を避けるために一度強制終了させてペンに入れ替える
+          // ★【バグ修正の核心：手のひらの強制解放と割り込み】
+          // もしすでに指（touch）等で描画中かつ、新しく検知したペンのポインターIDと異なる場合、
+          // 既存の指の描画ポインターキャプチャを明示的に解放・強制破棄して、完全に描画を一旦停止します。
           if (this.drawing && this.activePointerId !== e.pointerId) {
+            try {
+              this.canvas.releasePointerCapture(this.activePointerId);
+            } catch (err) {}
             this.drawing = false;
+            this.activePointerId = null;
           }
         }
 
-        // ペン専用モードがONの時、ペン以外の入力（指タッチ・マウス）による描画を完全に無視する
+        // ペン専用モードがONの時、指タッチによる不要な描画開始イベントは、即時キャンセルし、バブル伝播を揉み消して誤作動を塞ぎます
         if (this.penOnlyMode && e.pointerType !== 'pen') {
+          e.preventDefault();
+          e.stopPropagation();
           return;
         }
 
@@ -616,6 +638,13 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       }
 
       draw(e) {
+        // ペン専用モードが有効な状態で、指などの非ペンオブジェクトによる余分なイベントを完全にシャットアウト
+        if (this.penOnlyMode && e.pointerType !== 'pen') {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+
         if (!this.drawing) return;
         
         // ロックしているポインターID以外の描画イベント（競合タッチなど）を完全に無視する
@@ -633,6 +662,13 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       }
 
       stopDrawing(e) {
+        // ペン専用モード下での指によるポインター離脱イベント干渉をブロック
+        if (this.penOnlyMode && e && e.pointerType !== 'pen') {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+
         // 終了しようとしているポインターIDが、現在お絵描き中のものと一致している場合のみ終了
         if (e && e.pointerId === this.activePointerId) {
           this.drawing = false;
