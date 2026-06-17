@@ -36,7 +36,7 @@
 <body id="app-body" class="h-screen w-screen relative p-4 md:p-6 flex overflow-hidden bg-white select-none">
 
   <!-- 全画面手書きCanvas（アプリの最背面に常に全画面で存在。画面のどこでも描画可能） -->
-  <canvas id="app-global-canvas" class="absolute inset-0 w-full h-full block cursor-crosshair z-0"></canvas>
+  <canvas id="app-global-canvas" class="absolute inset-0 w-full h-full block cursor-crosshair z-0 touch-none"></canvas>
 
   <!-- 左端ペンコントロール（COLOR, SIZE）※インポート時は非表示。手書きスペースを邪魔しないよう極限まで小さくスリム化 -->
   <div id="left-pen-toolbar" class="hidden absolute left-2 md:left-3 top-1/2 -translate-y-1/2 z-20 flex flex-col space-y-4 bg-white border border-black p-2 pointer-events-auto shadow-sm">
@@ -49,23 +49,23 @@
     </div>
     <!-- 仕切り線 -->
     <div class="w-full border-t border-slate-200"></div>
-    <!-- SIZE 縦並び -->
+    <!-- SIZE 縦並び (inline-blockを明示し、縦横比を完全に一致させることで正円表示を保証) -->
     <div class="flex flex-col items-center space-y-1.5">
       <span class="text-[7px] font-bold uppercase tracking-wider text-slate-400">Size</span>
       <button data-size="1.0" class="size-picker-btn w-6 h-6 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="極細">
-        <span class="size-dot bg-black rounded-full transition-all" style="width: 2px; height: 2px;"></span>
+        <span class="size-dot bg-black rounded-full transition-all inline-block" style="width: 2px; height: 2px;"></span>
       </button>
       <button data-size="1.35" class="size-picker-btn w-6 h-6 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="細">
-        <span class="size-dot bg-black rounded-full transition-all" style="width: 4px; height: 4px;"></span>
+        <span class="size-dot bg-black rounded-full transition-all inline-block" style="width: 4px; height: 4px;"></span>
       </button>
       <button data-size="1.75" class="size-picker-btn w-6 h-6 flex items-center justify-center bg-white border-2 border-black hover:bg-slate-50 focus:outline-none" title="普通">
-        <span class="size-dot bg-black rounded-full transition-all" style="width: 6px; height: 6px;"></span>
+        <span class="size-dot bg-black rounded-full transition-all inline-block" style="width: 6px; height: 6px;"></span>
       </button>
       <button data-size="3.5" class="size-picker-btn w-6 h-6 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="太">
-        <span class="size-dot bg-black rounded-full transition-all" style="width: 10px; height: 10px;"></span>
+        <span class="size-dot bg-black rounded-full transition-all inline-block" style="width: 10px; height: 10px;"></span>
       </button>
       <button data-size="6.0" class="size-picker-btn w-6 h-6 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="極太">
-        <span class="size-dot bg-black rounded-full transition-all" style="width: 14px; height: 16px;"></span>
+        <span class="size-dot bg-black rounded-full transition-all inline-block" style="width: 14px; height: 14px;"></span>
       </button>
     </div>
     <!-- Apple Pencil感知状態インジケーター（極薄のドット） -->
@@ -84,7 +84,8 @@
 
     <!-- メインコンテンツ -->
     <main class="flex-grow flex items-center justify-center py-4 w-full">
-      <div class="w-full h-full flex flex-col justify-center max-w-2xl pl-12 md:pl-16"> <!-- 左端ペンコントロールのスリム化に伴い余白を狭めてスペース拡大 -->
+      <!-- 横幅の最大制限を max-w-2xl から max-w-4xl に広げ、左右パディングを最適化して画面を広く使えるように修正 -->
+      <div class="w-full h-full flex flex-col justify-center max-w-4xl pl-10 pr-2 md:pl-12 md:pr-4"> 
 
         <!-- 1. データ読み込み (Import Phase) (この画面は通常通りクリック可能) -->
         <section id="phase-import" class="space-y-6 pointer-events-auto w-full mx-auto max-w-lg">
@@ -303,7 +304,7 @@
         <h3 class="text-lg font-bold text-slate-900 border-b border-black pb-2">「暗記.html」の使い方</h3>
         <div class="text-xs text-slate-700 space-y-3 leading-relaxed">
           <p class="font-bold">1. CSVファイルをインポート</p>
-          <p class="pl-3">お手持ちのCSVファイルをドラッグ＆ドロップするか、ファイルを選択してください。<span class="font-bold">複数のCSVファイルを一度にまとめて選択</span>して、まとめて解くことも可能です。</p>
+          <p class="pl-3">お手持ち of CSVファイルをドラッグ＆ドロップするか、ファイルを選択してください。<span class="font-bold">複数のCSVファイルを一度にまとめて選択</span>して、まとめて解くことも可能です。</p>
           
           <p class="font-bold">2. オプション設定</p>
           <ul class="list-disc pl-6 space-y-1">
@@ -522,7 +523,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       return 'q_' + Math.random().toString(36).substr(2, 9);
     }
 
-    // --- 全画面手書きキャンバス操作クラス (Pointer Events統一版 & Apple Pencil検知) ---
+    // --- 全画面手書きキャンバス操作クラス (Pointer Events統一版 & Apple Pencil割り込み検知) ---
     class GlobalHandwritingCanvas {
       constructor(canvasElement) {
         this.canvas = canvasElement;
@@ -530,6 +531,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         this.drawing = false;
         this.lastX = 0;
         this.lastY = 0;
+        this.activePointerId = null; // 現在お絵描きを実行中のポインターID
         
         // Apple Pencil (スタイラスペン) 専用描画ロックモードの初期状態
         this.penOnlyMode = false;
@@ -537,8 +539,8 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         // Pointer Events による一元化
         this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
         this.canvas.addEventListener('pointermove', (e) => this.draw(e));
-        this.canvas.addEventListener('pointerup', () => this.stopDrawing());
-        this.canvas.addEventListener('pointercancel', () => this.stopDrawing());
+        this.canvas.addEventListener('pointerup', (e) => this.stopDrawing(e));
+        this.canvas.addEventListener('pointercancel', (e) => this.stopDrawing(e));
 
         // ウィンドウリサイズ対応
         this.resizeTimeout = null;
@@ -575,10 +577,9 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         };
       }
 
-      // 描画可否および Apple Pencil 感知判定
-      checkPointerEligibility(e) {
+      startDrawing(e) {
         // インポート時、または一巡アニメーション中は反応しない
-        if (currentPhase === 'import' || isTransitioning) return false;
+        if (currentPhase === 'import' || isTransitioning) return;
 
         // 一度でも Apple Pencil (pointerType === 'pen') を検知したら専用ロックをONにする
         if (e.pointerType === 'pen') {
@@ -588,26 +589,38 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
             pencilModeIndicator.classList.remove('bg-slate-200');
             pencilModeIndicator.classList.add('bg-emerald-500');
           }
+          
+          // ★超重要：もしすでに指（touch）等で描画フラグが立っていた場合、競合を避けるために一度強制終了させてペンに入れ替える
+          if (this.drawing && this.activePointerId !== e.pointerId) {
+            this.drawing = false;
+          }
         }
 
         // ペン専用モードがONの時、ペン以外の入力（指タッチ・マウス）による描画を完全に無視する
         if (this.penOnlyMode && e.pointerType !== 'pen') {
-          return false;
+          return;
         }
 
-        return true;
-      }
-
-      startDrawing(e) {
-        if (!this.checkPointerEligibility(e)) return;
+        // 描画ステートを開始
         this.drawing = true;
+        this.activePointerId = e.pointerId; // 描画中のポインターIDをロック
+
+        // 画面の端など、外へ引っ張られたときもポインター情報をロスしないようにキャプチャをバインド
+        try {
+          this.canvas.setPointerCapture(e.pointerId);
+        } catch (err) {}
+
         const pos = this.getPointerPos(e);
         this.lastX = pos.x;
         this.lastY = pos.y;
       }
 
       draw(e) {
-        if (!this.drawing || !this.checkPointerEligibility(e)) return;
+        if (!this.drawing) return;
+        
+        // ロックしているポインターID以外の描画イベント（競合タッチなど）を完全に無視する
+        if (e.pointerId !== this.activePointerId) return;
+
         const pos = this.getPointerPos(e);
         
         this.ctx.beginPath();
@@ -619,8 +632,19 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         this.lastY = pos.y;
       }
 
-      stopDrawing() {
-        this.drawing = false;
+      stopDrawing(e) {
+        // 終了しようとしているポインターIDが、現在お絵描き中のものと一致している場合のみ終了
+        if (e && e.pointerId === this.activePointerId) {
+          this.drawing = false;
+          try {
+            this.canvas.releasePointerCapture(e.pointerId);
+          } catch (err) {}
+          this.activePointerId = null;
+        } else if (!e) {
+          // フォールバック
+          this.drawing = false;
+          this.activePointerId = null;
+        }
       }
 
       clear() {
@@ -813,10 +837,11 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
 
       // 1行目のグループ進捗（n > 0 かつ、かつ全体のグループ数が 1 より多い時のみ表示）
       if (settingGroupSize > 0 && totalGroups > 1) {
-        // テスト中・丸付け中問わず、現在挑戦中のグループとクリア済グループを評価
+        // グループバーの表示変更：
+        // 完了したところ（現在よりも前のグループ）を緑色、今取り組んでいる進行中の黄色は使用しない（非表示）
         const completedGroups = currentGroupIndex; 
         const confirmedPercent = (completedGroups / totalGroups) * 100;
-        const currentPercent = ((completedGroups + 1) / totalGroups) * 100;
+        const currentPercent = confirmedPercent; // 黄色の現在進行位置を緑の確定位置と同一にすることで、黄色を排除
 
         if (mode === 'test') {
           testGroupBarContainer.classList.remove('hidden');
@@ -851,24 +876,44 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         reviewGroupTextContainer.classList.add('hidden');
       }
 
-      // 2行目の問題進捗（現在のグループまたは間違え直しリストに対する進捗）
-      const totalQuestionsInCurrentRound = currentList.length;
-      if (totalQuestionsInCurrentRound === 0) return;
+      // 2行目の問題進捗（グループ全体の全問題に対する定着緑と現在進行黄色）
+      const currentGroupQuestions = studyGroups[currentGroupIndex] || [];
+      const N = currentGroupQuestions.length;
+      if (N === 0) return;
 
       const activeCurrent = currentIndex;
-      const currentPercent = (activeCurrent / totalQuestionsInCurrentRound) * 100;
+      
+      // 進捗ロジックの修正：
+      // すでに正解して、次の間違え直しリスト（currentList）に入っていないクリア済みの問題数
+      const confirmedCount = N - currentList.length;
+      
+      // すでに正解した部分を緑色、正解していない問題の中での現在の回答進捗を黄色で描画
+      const confirmedPercent = (confirmedCount / N) * 100;
+      const currentPercent = ((confirmedCount + activeCurrent) / N) * 100;
 
       if (mode === 'test') {
-        testProgressBarConfirmed.style.width = `0%`; // 単一ラウンド内の再テストなので過去確定は0%
-        testProgressBarCurrent.style.width = `${currentPercent}%`;
+        if (confirmedPercent !== lastTestConfirmedPercent) {
+          testProgressBarConfirmed.style.width = `${confirmedPercent}%`;
+          lastTestConfirmedPercent = confirmedPercent;
+        }
+        if (currentPercent !== lastTestCurrentPercent) {
+          testProgressBarCurrent.style.width = `${currentPercent}%`;
+          lastTestCurrentPercent = currentPercent;
+        }
         if (currentIndex < currentList.length) {
-          testProgressText.innerText = `問題 ${activeCurrent + 1} / ${totalQuestionsInCurrentRound}`;
+          testProgressText.innerText = `問題 ${confirmedCount + activeCurrent + 1} / ${N}`;
         }
       } else if (mode === 'review') {
-        reviewProgressBarConfirmed.style.width = `0%`;
-        reviewProgressBarCurrent.style.width = `${currentPercent}%`;
+        if (confirmedPercent !== lastReviewConfirmedPercent) {
+          reviewProgressBarConfirmed.style.width = `${confirmedPercent}%`;
+          lastReviewConfirmedPercent = confirmedPercent;
+        }
+        if (currentPercent !== lastReviewCurrentPercent) {
+          reviewProgressBarCurrent.style.width = `${currentPercent}%`;
+          lastReviewCurrentPercent = currentPercent;
+        }
         if (currentIndex < currentList.length) {
-          reviewProgressText.innerText = `丸付け ${activeCurrent + 1} / ${totalQuestionsInCurrentRound}`;
+          reviewProgressText.innerText = `丸付け ${confirmedCount + activeCurrent + 1} / ${N}`;
         }
       }
     }
