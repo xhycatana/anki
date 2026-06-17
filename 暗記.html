@@ -33,26 +33,62 @@
     }
   </style>
 </head>
-<body id="app-body" class="h-screen w-screen relative p-4 md:p-8 flex flex-col justify-between overflow-hidden">
+<body id="app-body" class="h-screen w-screen relative p-4 md:p-6 flex overflow-hidden bg-white select-none">
 
   <!-- 全画面手書きCanvas（アプリの最背面に常に全画面で存在。画面のどこでも描画可能） -->
   <canvas id="app-global-canvas" class="absolute inset-0 w-full h-full block cursor-crosshair z-0"></canvas>
+
+  <!-- 左端ペンコントロール（COLOR, SIZE）※インポート時は非表示。手書きスペースを邪魔しないよう極限まで小さくスリム化 -->
+  <div id="left-pen-toolbar" class="hidden absolute left-2 md:left-3 top-1/2 -translate-y-1/2 z-20 flex flex-col space-y-4 bg-white border border-black p-2 pointer-events-auto shadow-sm">
+    <!-- COLOR 縦並び -->
+    <div class="flex flex-col items-center space-y-1.5">
+      <span class="text-[7px] font-bold uppercase tracking-wider text-slate-400">Color</span>
+      <button id="btn-pen-black" data-color="#000000" class="color-picker-btn w-5 h-5 bg-black border-2 border-black focus:outline-none" title="黒"></button>
+      <button id="btn-pen-red" data-color="#ef4444" class="color-picker-btn w-5 h-5 bg-red-500 border border-slate-300 focus:outline-none" title="赤"></button>
+      <button id="btn-pen-blue" data-color="#3b82f6" class="color-picker-btn w-5 h-5 bg-blue-500 border border-slate-300 focus:outline-none" title="青"></button>
+    </div>
+    <!-- 仕切り線 -->
+    <div class="w-full border-t border-slate-200"></div>
+    <!-- SIZE 縦並び -->
+    <div class="flex flex-col items-center space-y-1.5">
+      <span class="text-[7px] font-bold uppercase tracking-wider text-slate-400">Size</span>
+      <button data-size="1.0" class="size-picker-btn w-6 h-6 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="極細">
+        <span class="size-dot bg-black rounded-full transition-all" style="width: 2px; height: 2px;"></span>
+      </button>
+      <button data-size="1.35" class="size-picker-btn w-6 h-6 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="細">
+        <span class="size-dot bg-black rounded-full transition-all" style="width: 4px; height: 4px;"></span>
+      </button>
+      <button data-size="1.75" class="size-picker-btn w-6 h-6 flex items-center justify-center bg-white border-2 border-black hover:bg-slate-50 focus:outline-none" title="普通">
+        <span class="size-dot bg-black rounded-full transition-all" style="width: 6px; height: 6px;"></span>
+      </button>
+      <button data-size="3.5" class="size-picker-btn w-6 h-6 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="太">
+        <span class="size-dot bg-black rounded-full transition-all" style="width: 10px; height: 10px;"></span>
+      </button>
+      <button data-size="6.0" class="size-picker-btn w-6 h-6 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="極太">
+        <span class="size-dot bg-black rounded-full transition-all" style="width: 14px; height: 16px;"></span>
+      </button>
+    </div>
+    <!-- Apple Pencil感知状態インジケーター（極薄のドット） -->
+    <div class="flex justify-center pt-0.5" title="ペンのみ描画モード">
+      <span id="pencil-mode-indicator" class="w-1.5 h-1.5 rounded-full bg-slate-200 transition-colors duration-350"></span>
+    </div>
+  </div>
 
   <!-- 画面コンテンツレイヤー（pointer-events-noneで描画操作を透過。ボタンなどのみ pointer-events-auto で反応） -->
   <div class="relative z-10 w-full h-full flex flex-col justify-between pointer-events-none flex-grow">
     
     <!-- ヘッダーエリア -->
-    <header class="max-w-3xl w-full mx-auto flex justify-end items-center pb-4">
+    <header class="max-w-3xl w-full mx-auto flex justify-end items-center pb-2">
       <!-- ヘッダー情報は非表示 -->
     </header>
 
     <!-- メインコンテンツ -->
-    <main class="flex-grow flex items-center justify-center py-6 w-full">
-      <div class="w-full h-full flex flex-col justify-center">
+    <main class="flex-grow flex items-center justify-center py-4 w-full">
+      <div class="w-full h-full flex flex-col justify-center max-w-2xl pl-12 md:pl-16"> <!-- 左端ペンコントロールのスリム化に伴い余白を狭めてスペース拡大 -->
 
         <!-- 1. データ読み込み (Import Phase) (この画面は通常通りクリック可能) -->
-        <section id="phase-import" class="space-y-6 pointer-events-auto max-w-2xl w-full mx-auto">
-          <div class="text-center space-y-2 mb-8">
+        <section id="phase-import" class="space-y-6 pointer-events-auto w-full mx-auto max-w-lg">
+          <div class="text-center space-y-2 mb-6">
             <h2 class="text-2xl font-bold text-slate-850 tracking-tight">CSVをインポート</h2>
           </div>
 
@@ -75,24 +111,24 @@
           </div>
 
           <!-- ドラッグ＆ドロップエリア (複数選択対応) -->
-          <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-black rounded-none p-12 text-center cursor-pointer transition-colors duration-200 bg-white shadow-sm">
+          <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-black rounded-none p-10 text-center cursor-pointer transition-colors duration-200 bg-white shadow-sm">
             <input type="file" id="file-input" accept=".csv" class="hidden" multiple>
-            <svg class="mx-auto h-12 w-12 text-slate-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="mx-auto h-12 w-12 text-slate-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             <p class="text-sm text-slate-700 font-medium">複数のCSVファイルをドラッグ＆ドロップ</p>
             <p class="text-xs text-slate-400 mt-1">またはクリックしてまとめてファイルを選択</p>
           </div>
 
-          <!-- 前回と同じ問題で再開するボタン（最初は非表示、一度完了したあとに表示される） -->
-          <div id="restart-last-container" class="hidden flex justify-center pt-2">
+          <!-- 前回と同じ問題で再開するボタン -->
+          <div id="restart-last-container" class="hidden flex justify-center pt-1">
             <button id="btn-restart-last" class="px-6 py-3 bg-white hover:bg-slate-50 text-black border border-black text-xs font-bold rounded-none transition-colors shadow-sm focus:outline-none">
               前回と同じ問題でもう一度解く
             </button>
           </div>
 
           <!-- 画面最下部に極小・極薄で配置されたヘルプ・サンプル機能 -->
-          <div class="pt-4 space-y-2">
+          <div class="pt-2 space-y-2">
             <div class="flex justify-center items-center space-x-3 text-[10px] text-slate-400/50">
               <button id="btn-use-sample" class="hover:text-black underline transition-colors focus:outline-none">
                 サンプル
@@ -150,17 +186,17 @@
               </div>
             </div>
 
-            <!-- 下端にボタン類を追いやる (押しやすさ改善: 左端に縦並び、かつボタンサイズを丸バツと同じ w-12 h-12 アイコン型に完全統一) -->
-            <div class="p-2 md:p-4 mt-auto flex flex-col items-start space-y-2 pointer-events-none">
-              <!-- 消去ボタン (ゴミ箱アイコン) -->
-              <button id="btn-clear-test-canvas" class="pointer-events-auto w-12 h-12 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="消去">
-                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <!-- 下端に操作ボタン（横長で細長く、真ん中の下に並べて配置。文字なしアイコンのみ） -->
+            <div class="p-2 md:p-4 mt-auto flex justify-center items-center space-x-4 pointer-events-auto">
+              <!-- 消去ボタン (横長長方形・ゴミ箱のみ) -->
+              <button id="btn-clear-test-canvas" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="消去">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
-              <!-- 決定ボタン (矢印アイコン) -->
-              <button id="btn-submit-test" class="pointer-events-auto w-12 h-12 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="決定">
-                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <!-- 決定ボタン (横長長方形・矢印のみ) -->
+              <button id="btn-submit-test" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="決定">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
               </button>
@@ -213,36 +249,36 @@
               </div>
             </div>
 
-            <!-- 自己採点・書き直し操作ボタン群 (下端に配置。左端縦並びレイアウト) -->
-            <div id="review-control-container" class="p-2 md:p-4 mt-auto pointer-events-none flex flex-col items-start">
+            <!-- 自己採点・書き直し操作ボタン群 (下端に配置。真ん中の下、細長く、アイコンのみ) -->
+            <div id="review-control-container" class="p-2 md:p-4 mt-auto pointer-events-auto flex justify-center">
               
-              <!-- 通常採点時ボタン（白背景 + 黒枠線。左端に縦に整列） -->
-              <div id="normal-review-buttons" class="flex flex-col items-start space-y-2 pointer-events-none">
+              <!-- 通常採点時ボタン（白背景 + 黒枠線。中央横並び・細長・アイコンのみ） -->
+              <div id="normal-review-buttons" class="flex justify-center space-x-4 pointer-events-auto">
                 <!-- ❌ボタン -->
-                <button id="btn-self-wrong" class="pointer-events-auto w-12 h-12 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="間違えた">
+                <button id="btn-self-wrong" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="間違えた">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
-                <!-- ⭕ボタン -->
-                <button id="btn-self-correct" class="pointer-events-auto w-12 h-12 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="合ってた">
-                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <!-- ⭕ボタン (アイコンサイズを w-5 h-5 に完全に統一してバグを解消) -->
+                <button id="btn-self-correct" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="合ってた">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <circle cx="12" cy="12" r="8" />
                   </svg>
                 </button>
               </div>
 
-              <!-- 書き直し決定・消去ボタン（左端に縦に整列。ボタンサイズを w-12 h-12 のアイコン型で完全統一） -->
-              <div id="retype-action-buttons" class="hidden flex flex-col items-start space-y-2 pointer-events-none">
-                <!-- 消去ボタン (ゴミ箱アイコン) -->
-                <button id="btn-clear-retype-canvas" class="pointer-events-auto w-12 h-12 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="消去">
-                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <!-- 書き直し決定・消去ボタン（中央横並び・細長・アイコンのみ） -->
+              <div id="retype-action-buttons" class="hidden flex justify-center space-x-4 pointer-events-auto">
+                <!-- 消去ボタン -->
+                <button id="btn-clear-retype-canvas" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="消去">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
-                <!-- 決定ボタン (矢印アイコン) -->
-                <button id="btn-submit-retype" class="pointer-events-auto w-12 h-12 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black text-xs font-bold rounded-none transition-colors shadow-sm focus:outline-none" title="決定">
-                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <!-- 決定ボタン -->
+                <button id="btn-submit-retype" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="決定">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
                 </button>
@@ -255,43 +291,8 @@
       </div>
     </main>
 
-    <!-- フッターエリア（不要なノイズのない、白＋黒枠線のモダンペンコントロールバー） -->
-    <footer class="w-full mx-auto pb-4 flex justify-center pointer-events-none">
-      <div id="pen-controls" class="hidden pointer-events-auto flex items-center space-x-4 bg-white border border-black px-4 py-2 text-xs rounded-none shadow-sm">
-        <!-- 色の切り替え -->
-        <div class="flex items-center space-x-2">
-          <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">COLOR</span>
-          <div class="flex items-center space-x-1.5">
-            <button id="btn-pen-black" data-color="#000000" class="color-picker-btn w-5 h-5 bg-black border-2 border-black focus:outline-none" title="黒"></button>
-            <button id="btn-pen-red" data-color="#ef4444" class="color-picker-btn w-5 h-5 bg-red-500 border border-slate-300 focus:outline-none" title="赤"></button>
-            <button id="btn-pen-blue" data-color="#3b82f6" class="color-picker-btn w-5 h-5 bg-blue-500 border border-slate-300 focus:outline-none" title="青"></button>
-          </div>
-        </div>
-        <!-- 仕切り線 -->
-        <div class="h-4 border-l border-slate-200"></div>
-        <!-- 5段階サイズ選択 (デフォルト 1.75 がアクティブ) -->
-        <div class="flex items-center space-x-2">
-          <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">SIZE</span>
-          <div class="flex items-center space-x-1">
-            <button data-size="1.0" class="size-picker-btn w-7 h-7 flex items-center justify-center bg-white border-slate-300 hover:bg-slate-50 focus:outline-none" title="極細">
-              <span class="size-dot bg-black rounded-full transition-all" style="width: 2px; height: 2px;"></span>
-            </button>
-            <button data-size="1.35" class="size-picker-btn w-7 h-7 flex items-center justify-center bg-white border-slate-300 hover:bg-slate-50 focus:outline-none" title="細">
-              <span class="size-dot bg-black rounded-full transition-all" style="width: 4px; height: 4px;"></span>
-            </button>
-            <button data-size="1.75" class="size-picker-btn w-7 h-7 flex items-center justify-center bg-white border-2 border-black hover:bg-slate-50 focus:outline-none" title="普通">
-              <span class="size-dot bg-black rounded-full transition-all" style="width: 6px; height: 6px;"></span>
-            </button>
-            <button data-size="3.5" class="size-picker-btn w-7 h-7 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="太">
-              <span class="size-dot bg-black rounded-full transition-all" style="width: 10px; height: 10px;"></span>
-            </button>
-            <button data-size="6.0" class="size-picker-btn w-7 h-7 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="極太">
-              <span class="size-dot bg-black rounded-full transition-all" style="width: 16px; height: 16px;"></span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </footer>
+    <!-- フッターは余白のみ -->
+    <footer class="w-full mx-auto pb-4"></footer>
 
   </div>
 
@@ -321,7 +322,10 @@
           <p class="pl-3">間違えた問題がある場合、その問題だけで再びテストが始まります。グループ分割している場合は、そのグループ内の問題をすべて完璧にするまでループします。完全にクリアすると自動でインポート画面へ滑らかに戻ります。</p>
 
           <p class="font-bold">6. ペンとデバイスの機能と自動保存</p>
-          <p class="pl-3">画面下部のツールバーで「黒・赤・青」のペンカラー、および5段階の太さにいつでも切り替えられます。手書き時には軽快かつ滑らかな描画性能をお届けします。また、ランダム・分割問題数・ペンの太さや色は、お使いのブラウザ（ローカルストレージ）に安全に自動セーブ・同期されます。</p>
+          <p class="pl-3">画面下部のツールバーで「黒・赤・青」のペンカラー、および5段階 of 太さにいつでも切り替えられます。手書き時には軽快かつ滑らかな描画性能をお届けします。また、ランダム・分割問題数・ペンの太さや色は、お使いのブラウザ（ローカルストレージ）に安全に自動セーブ・同期されます。</p>
+
+          <p class="font-bold">7. Apple Pencil (スタイラスペン) 専用手書き保護</p>
+          <p class="pl-3">アプリを立ち上げてから、一度でもApple Pencil等の専用ペンで画面に線を描くと、自動的に「ペン入力のみを受け付ける保護モード」に入ります。以降は、手が画面に触れても余計な線が書かれなくなるため快適に学習できます（各種ボタンやコントロールの操作は、引き続き指でも行えます）。この保護モードはファイルを再度開いたときにリセットされます。</p>
         </div>
       </div>
       <div class="flex justify-end pt-4 border-t border-slate-100 mt-2">
@@ -446,6 +450,8 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     const phaseImport = document.getElementById('phase-import');
     const phaseTest = document.getElementById('phase-test');
     const phaseReview = document.getElementById('phase-review');
+    const leftPenToolbar = document.getElementById('left-pen-toolbar');
+    const pencilModeIndicator = document.getElementById('pencil-mode-indicator');
 
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
@@ -508,7 +514,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     const btnSubmitRetype = document.getElementById('btn-submit-retype');
 
     // ペンコントロール関連要素
-    const penControls = document.getElementById('pen-controls');
     const sizePickerButtons = document.querySelectorAll('.size-picker-btn');
     const colorPickerButtons = document.querySelectorAll('.color-picker-btn');
 
@@ -517,7 +522,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       return 'q_' + Math.random().toString(36).substr(2, 9);
     }
 
-    // --- 全画面手書きキャンバス操作クラス ---
+    // --- 全画面手書きキャンバス操作クラス (Pointer Events統一版 & Apple Pencil検知) ---
     class GlobalHandwritingCanvas {
       constructor(canvasElement) {
         this.canvas = canvasElement;
@@ -525,20 +530,15 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         this.drawing = false;
         this.lastX = 0;
         this.lastY = 0;
+        
+        // Apple Pencil (スタイラスペン) 専用描画ロックモードの初期状態
+        this.penOnlyMode = false;
 
-        // 全画面手書き用の一時保存バッファ
-        this.saveStateUrl = null;
-
-        // イベントリスナーのバインド
-        this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
-        this.canvas.addEventListener('mousemove', (e) => this.draw(e));
-        this.canvas.addEventListener('mouseup', () => this.stopDrawing());
-        this.canvas.addEventListener('mouseout', () => this.stopDrawing());
-
-        // タッチ操作用
-        this.canvas.addEventListener('touchstart', (e) => this.startDrawingTouch(e), { passive: false });
-        this.canvas.addEventListener('touchmove', (e) => this.drawTouch(e), { passive: false });
-        this.canvas.addEventListener('touchend', () => this.stopDrawing());
+        // Pointer Events による一元化
+        this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
+        this.canvas.addEventListener('pointermove', (e) => this.draw(e));
+        this.canvas.addEventListener('pointerup', () => this.stopDrawing());
+        this.canvas.addEventListener('pointercancel', () => this.stopDrawing());
 
         // ウィンドウリサイズ対応
         this.resizeTimeout = null;
@@ -548,13 +548,13 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         });
       }
 
-      // キャンバスサイズの初期化・最適化（ウィンドウ全体を覆う）
+      // キャンバスサイズの初期化・最適化
       resizeCanvas() {
         const backup = this.canvas.toDataURL(); // 描画内容を退避
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
         
-        // 常に現在選択されているペンの太さと色を確実に適用
+        // 現在の描画属性の適用
         this.ctx.lineWidth = currentPenWidth;
         this.ctx.lineCap = 'round';
         this.ctx.strokeStyle = currentPenColor;
@@ -567,59 +567,56 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         img.src = backup;
       }
 
-      // 座標取得 (全画面に対する座標)
-      getMousePos(e) {
+      // 座標取得 (全画面に対する絶対座標)
+      getPointerPos(e) {
         return {
           x: e.clientX,
           y: e.clientY
         };
       }
 
-      getTouchPos(e) {
-        if (e.touches.length === 0) return { x: 0, y: 0 };
-        return {
-          x: e.touches[0].clientX,
-          y: e.touches[0].clientY
-        };
+      // 描画可否および Apple Pencil 感知判定
+      checkPointerEligibility(e) {
+        // インポート時、または一巡アニメーション中は反応しない
+        if (currentPhase === 'import' || isTransitioning) return false;
+
+        // 一度でも Apple Pencil (pointerType === 'pen') を検知したら専用ロックをONにする
+        if (e.pointerType === 'pen') {
+          if (!this.penOnlyMode) {
+            this.penOnlyMode = true;
+            // ツールバーの極小インジケーターをエメラルドグリーンにしてONを明示
+            pencilModeIndicator.classList.remove('bg-slate-200');
+            pencilModeIndicator.classList.add('bg-emerald-500');
+          }
+        }
+
+        // ペン専用モードがONの時、ペン以外の入力（指タッチ・マウス）による描画を完全に無視する
+        if (this.penOnlyMode && e.pointerType !== 'pen') {
+          return false;
+        }
+
+        return true;
       }
 
       startDrawing(e) {
-        if (currentPhase === 'import' || currentPhase === 'finished' || isTransitioning) return;
+        if (!this.checkPointerEligibility(e)) return;
         this.drawing = true;
-        const pos = this.getMousePos(e);
-        this.lastX = pos.x;
-        this.lastY = pos.y;
-      }
-
-      startDrawingTouch(e) {
-        if (currentPhase === 'import' || currentPhase === 'finished' || isTransitioning) return;
-        e.preventDefault();
-        this.drawing = true;
-        const pos = this.getTouchPos(e);
+        const pos = this.getPointerPos(e);
         this.lastX = pos.x;
         this.lastY = pos.y;
       }
 
       draw(e) {
-        if (!this.drawing || isTransitioning) return;
-        const pos = this.getMousePos(e);
-        this.drawSegment(pos.x, pos.y);
-      }
-
-      drawTouch(e) {
-        e.preventDefault();
-        if (!this.drawing || isTransitioning) return;
-        const pos = this.getTouchPos(e);
-        this.drawSegment(pos.x, pos.y);
-      }
-
-      drawSegment(x, y) {
+        if (!this.drawing || !this.checkPointerEligibility(e)) return;
+        const pos = this.getPointerPos(e);
+        
         this.ctx.beginPath();
         this.ctx.moveTo(this.lastX, this.lastY);
-        this.ctx.lineTo(x, y);
+        this.ctx.lineTo(pos.x, pos.y);
         this.ctx.stroke();
-        this.lastX = x;
-        this.lastY = y;
+        
+        this.lastX = pos.x;
+        this.lastY = pos.y;
       }
 
       stopDrawing() {
@@ -628,6 +625,13 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
 
       clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      }
+
+      // ペンのみ反応するモードをリセットする
+      resetPenOnlyMode() {
+        this.penOnlyMode = false;
+        pencilModeIndicator.classList.remove('bg-emerald-500');
+        pencilModeIndicator.classList.add('bg-slate-200');
       }
 
       // ペン設定 of 動的適用
@@ -656,7 +660,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
 
     const globalCanvas = new GlobalHandwritingCanvas(document.getElementById('app-global-canvas'));
 
-    // --- RFC 4180 準拠・堅牢なCSVパース処理 ---
+    // --- CSVパース処理 ---
     function parseCSV(text) {
       const result = [];
       let row = [];
@@ -741,22 +745,16 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
 
       if (newPhase === 'import') {
         phaseImport.classList.remove('hidden');
-        penControls.classList.add('hidden'); 
+        leftPenToolbar.classList.add('hidden'); // インポート画面ではツールバーは非表示
         globalCanvas.clear();
-
-        // 前回解いたキャッシュデータがある場合、再開ボタンを表示
-        if (lastUploadedRawData && lastUploadedRawData.length > 0) {
-          restartLastContainer.classList.remove('hidden');
-        } else {
-          restartLastContainer.classList.add('hidden');
-        }
+        globalCanvas.resetPenOnlyMode(); // ファイルを再び開いたのでペン優先ロックをリセット
       } else if (newPhase === 'test') {
         phaseTest.classList.remove('hidden');
-        penControls.classList.remove('hidden'); 
+        leftPenToolbar.classList.remove('hidden'); // テスト画面でツールバーを表示
         initTestPhase();
       } else if (newPhase === 'review') {
         phaseReview.classList.remove('hidden');
-        penControls.classList.remove('hidden'); 
+        leftPenToolbar.classList.remove('hidden'); // 丸付け画面でツールバーを表示
         initReviewPhase();
       }
     }
@@ -1226,7 +1224,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         document.querySelectorAll('.size-dot').forEach(dot => {
           dot.style.backgroundColor = selectedColor;
         });
-        saveSettingsToLocalStorage(); // 設定の自動保存
       });
     });
 
