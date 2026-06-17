@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>暗記.html</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts & Tailwind Config for Smooth Transitions -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #ffffff;
+      color: #1e293b;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: hidden;
+      touch-action: none; /* デバイスのデフォルトスクロールやピンチを防止してキャンバスを安定化 */
+    }
+    /* 滑らかな切り替えアニメーション */
+    .fade-transition {
+      transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1), transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .fade-out {
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: none !important; /* フェードアウト時は瞬時に切り替える */
+    }
+    .fade-in {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body id="app-body" class="h-screen w-screen relative p-4 md:p-8 flex flex-col justify-between overflow-hidden select-none">
+
+  <!-- 全画面手書きCanvas（最背面、Pointer Events対応） -->
+  <canvas id="app-global-canvas" class="absolute inset-0 w-full h-full block cursor-crosshair z-0 touch-none"></canvas>
+
+  <!-- 画面コンテンツレイヤー（pointer-events-noneで描画操作を透過、UIパーツのみpointer-events-autoで反応） -->
+  <div class="relative z-10 w-full h-full flex flex-col justify-between pointer-events-none flex-grow">
+    
+    <!-- ヘッダーエリア (将来の拡張用スペース) -->
+    <header class="max-w-3xl w-full mx-auto flex justify-end items-center pb-2">
+      <!-- スペーサー -->
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-grow flex items-center justify-center py-4 w-full overflow-hidden">
+      <div class="w-full h-full flex flex-col justify-center">
+
+        <!-- 1. データ読み込み (Import Phase) -->
+        <section id="phase-import" class="space-y-6 pointer-events-auto max-w-2xl w-full mx-auto">
+          <div class="text-center space-y-2 mb-6">
+            <h2 class="text-2xl font-bold text-slate-800 tracking-tight">CSVをインポート</h2>
+          </div>
+
+          <!-- 設定パネル -->
+          <div class="bg-white border border-black p-4 space-y-4">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-slate-700">出題順をランダムにする</span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="check-random" class="sr-only peer" checked>
+                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+              </label>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-slate-700">何問ずつに分割してループ学習するか</span>
+              <div class="flex items-center space-x-2">
+                <input type="number" id="input-group-size" value="0" min="0" class="w-16 p-1 border border-black text-center focus:outline-none font-bold" title="分割問題数">
+                <span class="text-slate-400">問ずつ</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ドラッグ＆ドロップエリア -->
+          <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-black rounded-none p-10 text-center cursor-pointer transition-colors duration-200 bg-white shadow-sm">
+            <input type="file" id="file-input" accept=".csv" class="hidden" multiple>
+            <svg class="mx-auto h-12 w-12 text-slate-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <p class="text-sm text-slate-700 font-medium">複数のCSVファイルをドラッグ＆ドロップ</p>
+            <p class="text-xs text-slate-400 mt-1">またはクリックしてまとめてファイルを選択</p>
+          </div>
+
+          <!-- 前回と同じ問題で再開するボタン -->
+          <div id="restart-last-container" class="hidden flex justify-center pt-1">
+            <button id="btn-restart-last" class="px-6 py-3 bg-white hover:bg-slate-50 text-black border border-black text-xs font-bold rounded-none transition-colors shadow-sm focus:outline-none">
+              前回と同じ問題でもう一度解く
+            </button>
+          </div>
+
+          <!-- 画面最下部の極小・極薄リンク -->
+          <div class="pt-4 space-y-2">
+            <div class="flex justify-center items-center space-x-3 text-[10px] text-slate-400/60">
+              <button id="btn-use-sample" class="hover:text-black underline transition-colors focus:outline-none">サンプル</button>
+              <span>・</span>
+              <button id="btn-toggle-example" class="hover:text-black underline transition-colors focus:outline-none">例</button>
+              <span>・</span>
+              <button id="btn-show-help" class="hover:text-black underline transition-colors focus:outline-none">使い方</button>
+            </div>
+            
+            <div id="example-box" class="hidden text-[10px] text-slate-400/80 font-mono text-center p-3 bg-white border border-slate-200 leading-relaxed">
+              <p class="font-bold mb-1 text-slate-500">CSVフォーマット例 (1行目:問題, 2行目:答え, 3行目:解説 [任意])</p>
+              <p>Apple,りんご,バラ科リンゴ属の果実。</p>
+              <p>Banana,バナナ,熱帯の多年生草本から採れる果実。</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. 出題・手書き解答 (Testing Phase) -->
+        <section id="phase-test" class="hidden space-y-4 w-full h-full flex flex-col justify-between">
+          <!-- 複数グループ対応進捗表示領域 -->
+          <div class="space-y-2 w-full">
+            <!-- 1行目: 全体グループ進捗バー -->
+            <div id="test-group-bar-container" class="hidden relative w-full bg-white border border-slate-200 h-2 rounded-none overflow-hidden">
+              <div id="test-group-bar-current" class="absolute left-0 top-0 h-full transition-all duration-150 bg-yellow-300" style="width: 0%;"></div>
+              <div id="test-group-bar-confirmed" class="absolute left-0 top-0 h-full transition-all duration-150 bg-green-400" style="width: 0%;"></div>
+            </div>
+            <div id="test-group-text-container" class="hidden justify-between items-center text-xs text-slate-400 px-1">
+              <span id="test-group-text">グループ 0 / 0</span>
+            </div>
+
+            <!-- 2行目: グループ内・問題進捗バー -->
+            <div class="relative w-full bg-white border border-slate-200 h-2 rounded-none overflow-hidden">
+              <div id="test-progress-bar-current" class="absolute left-0 top-0 h-full transition-all duration-150 bg-yellow-300" style="width: 0%;"></div>
+              <div id="test-progress-bar-confirmed" class="absolute left-0 top-0 h-full transition-all duration-150 bg-green-400" style="width: 0%;"></div>
+            </div>
+            <div class="flex justify-between items-center text-xs text-slate-400 px-1">
+              <span id="test-progress-text">問題 0 / 0</span>
+            </div>
+          </div>
+
+          <!-- 問題表示カード (透明化、筆記スペース最大化) -->
+          <div id="test-card-container" class="bg-transparent rounded-none fade-transition flex-grow flex flex-col justify-between overflow-hidden w-full">
+            <div class="p-2 md:p-4">
+              <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">QUESTION</span>
+              <div id="test-question" class="text-xl md:text-2xl font-bold text-slate-900 mt-1 leading-relaxed"></div>
+            </div>
+
+            <div class="p-2 md:p-4 mt-auto flex justify-between items-center pointer-events-none">
+              <button id="btn-clear-test-canvas" class="pointer-events-auto px-5 py-2 text-xs bg-white hover:bg-slate-50 text-black border border-black font-semibold rounded-none transition-colors shadow-sm focus:outline-none">
+                消去
+              </button>
+              <button id="btn-submit-test" class="pointer-events-auto px-6 py-2.5 bg-white hover:bg-slate-50 text-black border border-black text-xs font-bold rounded-none transition-colors shadow-sm focus:outline-none">
+                決定 ➔
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. 振り返り・セルフチェック (Review Phase) -->
+        <section id="phase-review" class="hidden space-y-4 w-full h-full flex flex-col justify-between">
+          <!-- 複数グループ対応進捗表示領域 -->
+          <div class="space-y-2 w-full">
+            <!-- 1行目: 全体グループ進捗バー -->
+            <div id="review-group-bar-container" class="hidden relative w-full bg-white border border-slate-200 h-2 rounded-none overflow-hidden">
+              <div id="review-group-bar-current" class="absolute left-0 top-0 h-full transition-all duration-150 bg-yellow-300" style="width: 0%;"></div>
+              <div id="review-group-bar-confirmed" class="absolute left-0 top-0 h-full transition-all duration-150 bg-green-400" style="width: 0%;"></div>
+            </div>
+            <div id="review-group-text-container" class="hidden justify-between items-center text-xs text-slate-400 px-1">
+              <span id="review-group-text">グループ 0 / 0</span>
+            </div>
+
+            <!-- 2行目: グループ内・問題進捗バー -->
+            <div class="relative w-full bg-white border border-slate-200 h-2 rounded-none overflow-hidden">
+              <div id="review-progress-bar-current" class="absolute left-0 top-0 h-full transition-all duration-150 bg-yellow-300" style="width: 0%;"></div>
+              <div id="review-progress-bar-confirmed" class="absolute left-0 top-0 h-full transition-all duration-150 bg-green-400" style="width: 0%;"></div>
+            </div>
+            <div class="flex justify-between items-center text-xs text-slate-400 px-1">
+              <span id="review-progress-text">丸付け 0 / 0</span>
+            </div>
+          </div>
+
+          <!-- 振り返りカード (透明化) -->
+          <div id="review-card-container" class="bg-transparent rounded-none fade-transition flex-grow flex flex-col justify-between overflow-hidden w-full">
+            <div class="p-2 md:p-4 space-y-3">
+              <div class="text-base md:text-lg font-bold text-slate-800">
+                <span>問題：</span><span id="review-question"></span>
+              </div>
+
+              <div class="text-base md:text-lg font-bold text-black bg-yellow-50/50 p-2 border-l-2 border-yellow-400">
+                <span>模範解答：</span><span id="review-model-answer"></span>
+              </div>
+
+              <div id="review-commentary-box" class="text-xs md:text-sm text-slate-500 leading-relaxed bg-slate-50 p-2.5">
+                <span>解説：</span><span id="review-commentary"></span>
+              </div>
+            </div>
+
+            <!-- 自己採点・書き直し操作ボタン群 -->
+            <div id="review-control-container" class="p-2 md:p-4 mt-auto pointer-events-none">
+              <!-- 通常採点ボタン -->
+              <div id="normal-review-buttons" class="flex justify-end space-x-3 pointer-events-none">
+                <button id="btn-self-wrong" class="pointer-events-auto w-12 h-12 flex items-center justify-center bg-white hover:bg-red-50 text-red-600 border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="間違えた">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <button id="btn-self-correct" class="pointer-events-auto w-12 h-12 flex items-center justify-center bg-white hover:bg-green-50 text-green-600 border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="合ってた">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="8" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- 書き直し決定・消去ボタン -->
+              <div id="retype-action-buttons" class="hidden flex justify-between items-center w-full pointer-events-none">
+                <button id="btn-clear-retype-canvas" class="pointer-events-auto px-4 py-1.5 text-xs bg-white hover:bg-slate-50 text-black border border-black font-semibold rounded-none transition-colors shadow-sm">
+                  消去
+                </button>
+                <button id="btn-submit-retype" class="pointer-events-auto px-5 py-2 bg-white hover:bg-slate-50 text-black border border-black text-xs font-bold rounded-none transition-colors shadow-sm">
+                  決定 ➔
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- フッターエリア (ペンコントロール) -->
+    <footer class="w-full mx-auto pb-4 flex justify-center pointer-events-none">
+      <div id="pen-controls" class="hidden pointer-events-auto flex items-center space-x-4 bg-white border border-black px-4 py-2 text-xs rounded-none shadow-sm">
+        <!-- 色の切り替え -->
+        <div class="flex items-center space-x-2">
+          <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">COLOR</span>
+          <div class="flex items-center space-x-1.5">
+            <button id="btn-pen-black" data-color="#000000" class="color-picker-btn w-5 h-5 bg-black border-2 border-black focus:outline-none" title="黒"></button>
+            <button id="btn-pen-red" data-color="#ef4444" class="color-picker-btn w-5 h-5 bg-red-500 border border-slate-300 focus:outline-none" title="赤"></button>
+            <button id="btn-pen-blue" data-color="#3b82f6" class="color-picker-btn w-5 h-5 bg-blue-500 border border-slate-300 focus:outline-none" title="青"></button>
+          </div>
+        </div>
+        <!-- 仕切り線 -->
+        <div class="h-4 border-l border-slate-200"></div>
+        <!-- 5段階サイズ選択 -->
+        <div class="flex items-center space-x-2">
+          <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">SIZE</span>
+          <div class="flex items-center space-x-1">
+            <button data-size="1.0" class="size-picker-btn w-7 h-7 flex items-center justify-center bg-white border-2 border-black hover:bg-slate-50 focus:outline-none" title="極細">
+              <span class="size-dot bg-black rounded-full transition-all" style="width: 2px; height: 2px;"></span>
+            </button>
+            <button data-size="1.5" class="size-picker-btn w-7 h-7 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="細">
+              <span class="size-dot bg-black rounded-full transition-all" style="width: 4px; height: 4px;"></span>
+            </button>
+            <button data-size="2.5" class="size-picker-btn w-7 h-7 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="普通">
+              <span class="size-dot bg-black rounded-full transition-all" style="width: 6px; height: 6px;"></span>
+            </button>
+            <button data-size="4.0" class="size-picker-btn w-7 h-7 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="太">
+              <span class="size-dot bg-black rounded-full transition-all" style="width: 10px; height: 10px;"></span>
+            </button>
+            <button data-size="7.0" class="size-picker-btn w-7 h-7 flex items-center justify-center bg-white border border-slate-300 hover:bg-slate-50 focus:outline-none" title="極太">
+              <span class="size-dot bg-black rounded-full transition-all" style="width: 15px; height: 15px;"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- 使い方ガイド モーダル -->
+  <div id="help-modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm pointer-events-auto">
+    <div class="bg-white border border-black w-full max-w-lg p-6 space-y-4 max-h-[85vh] overflow-y-auto flex flex-col justify-between shadow-2xl">
+      <div class="space-y-3">
+        <h3 class="text-lg font-bold text-slate-900 border-b border-black pb-2">「手書き暗記」の使い方</h3>
+        <div class="text-xs text-slate-700 space-y-3 leading-relaxed">
+          <p class="font-bold text-slate-800">1. CSVファイルをインポート</p>
+          <p class="pl-3 text-slate-600">CSVファイルをドラッグ＆ドロップ、または選択してください。<span class="font-bold">複数のCSVファイルを一度にまとめてマージ</span>して学習することもできます。</p>
+          
+          <p class="font-bold text-slate-800">2. オプション設定</p>
+          <ul class="list-disc pl-6 space-y-1 text-slate-600">
+            <li><span class="font-bold">出題順をランダムにする</span>: 順番をシャッフルします。</li>
+            <li><span class="font-bold">分割ループ学習設定</span>: 設定値（例「10」問など）ごとに学習ブロックを細切れにし、そのブロックが完璧（100%正解）になるまでループテストを繰り返します。「0」に設定すると分割せず一括学習します。</li>
+          </ul>
+
+          <p class="font-bold text-slate-800">3. 出題と手書き解答</p>
+          <p class="pl-3 text-slate-600">画面上のどこでも手書きで書き込めます。Apple Pencil などのスタイラスに対応し、極めて滑らかな書き味に最適化されています。</p>
+
+          <p class="font-bold text-slate-800">4. 自己採点と間違え直し</p>
+          <p class="pl-3 text-slate-600">自分の描画が薄く残るので、模範解答と比較して「⭕」か「❌」で自己評価します。「❌」時は自動で描画がリセットされ、正しい答えをその場で書き直してから進みます。</p>
+
+          <p class="font-bold text-slate-800">5. 設定の自動保存</p>
+          <p class="pl-3 text-slate-600">ペンカラー、線の太さ、チェックボックス状態、何問分割かの設定は、ブラウザをリロードしてもそのまま次回に維持されます。</p>
+        </div>
+      </div>
+      <div class="flex justify-end pt-4 border-t border-slate-100">
+        <button id="btn-close-help" class="px-5 py-2 bg-white hover:bg-slate-50 text-black border border-black text-xs font-bold transition-colors">
+          閉じる
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- システムロジック -->
+  <script>
+    // --- 状態（ステート）の一元管理 ---
+    const State = {
+      originalList: [],     // 読み込まれた元の問題データ
+      currentList: [],      // 現在進行中のセッション問題データ
+      userAnswers: {},      // 解答データ { id: canvasDataURL }
+      wrongQuestions: [],   // 自己採点ミスリスト
+      isFirstRound: true,   // グループ内の最初の挑戦ラウンドか
+      currentPhase: 'import', // 'import', 'test', 'review'
+      currentIndex: 0,
+      isTransitioning: false,
+      lastUploadedRawData: null, // 前回のセッションを復元するためのキャッシュ用
+      
+      // 分割学習用の制御用
+      settingGroupSize: 0,
+      studyGroups: [],
+      currentGroupIndex: 0,
+
+      // ペン設定
+      currentPenColor: '#000000',
+      currentPenWidth: 1.5,
+
+      // ローカルストレージキー
+      KEYS: {
+        RANDOM: 'ankis_cfg_random',
+        GROUP_SIZE: 'ankis_cfg_groupsize',
+        PEN_COLOR: 'ankis_cfg_pencolor',
+        PEN_SIZE: 'ankis_cfg_pensize',
+        RAW_DATA: 'ankis_data_raw'
+      }
+    };
+
+    // --- DOM要素の一元キャッシュ ---
+    const DOM = {
+      body: document.getElementById('app-body'),
+      canvas: document.getElementById('app-global-canvas'),
+      phaseImport: document.getElementById('phase-import'),
+      phaseTest: document.getElementById('phase-test'),
+      phaseReview: document.getElementById('phase-review'),
+      dropZone: document.getElementById('drop-zone'),
+      fileInput: document.getElementById('file-input'),
+      checkRandom: document.getElementById('check-random'),
+      inputGroupSize: document.getElementById('input-group-size'),
+      btnUseSample: document.getElementById('btn-use-sample'),
+      btnToggleExample: document.getElementById('btn-toggle-example'),
+      exampleBox: document.getElementById('example-box'),
+      restartLastContainer: document.getElementById('restart-last-container'),
+      btnRestartLast: document.getElementById('btn-restart-last'),
+      helpModal: document.getElementById('help-modal'),
+      btnShowHelp: document.getElementById('btn-show-help'),
+      btnCloseHelp: document.getElementById('btn-close-help'),
+      testCardContainer: document.getElementById('test-card-container'),
+      testQuestion: document.getElementById('test-question'),
+      btnClearTestCanvas: document.getElementById('btn-clear-test-canvas'),
+      btnSubmitTest: document.getElementById('btn-submit-test'),
+      testGroupBarContainer: document.getElementById('test-group-bar-container'),
+      testGroupTextContainer: document.getElementById('test-group-text-container'),
+      testGroupBarCurrent: document.getElementById('test-group-bar-current'),
+      testGroupBarConfirmed: document.getElementById('test-group-bar-confirmed'),
+      testGroupText: document.getElementById('test-group-text'),
+      testProgressBarCurrent: document.getElementById('test-progress-bar-current'),
+      testProgressBarConfirmed: document.getElementById('test-progress-bar-confirmed'),
+      testProgressText: document.getElementById('test-progress-text'),
+      reviewCardContainer: document.getElementById('review-card-container'),
+      reviewQuestion: document.getElementById('review-question'),
+      reviewModelAnswer: document.getElementById('review-model-answer'),
+      reviewCommentaryBox: document.getElementById('review-commentary-box'),
+      reviewCommentary: document.getElementById('review-commentary'),
+      reviewGroupBarContainer: document.getElementById('review-group-bar-container'),
+      reviewGroupTextContainer: document.getElementById('review-group-text-container'),
+      reviewGroupBarCurrent: document.getElementById('review-group-bar-current'),
+      reviewGroupBarConfirmed: document.getElementById('review-group-bar-confirmed'),
+      reviewGroupText: document.getElementById('review-group-text'),
+      reviewProgressBarCurrent: document.getElementById('review-progress-bar-current'),
+      reviewProgressBarConfirmed: document.getElementById('review-progress-bar-confirmed'),
+      reviewProgressText: document.getElementById('review-progress-text'),
+      normalReviewButtons: document.getElementById('normal-review-buttons'),
+      btnSelfCorrect: document.getElementById('btn-self-correct'),
+      btnSelfWrong: document.getElementById('btn-self-wrong'),
+      retypeActionButtons: document.getElementById('retype-action-buttons'),
+      btnClearRetypeCanvas: document.getElementById('btn-clear-retype-canvas'),
+      btnSubmitRetype: document.getElementById('btn-submit-retype'),
+      penControls: document.getElementById('pen-controls'),
+      sizePickerBtns: document.querySelectorAll('.size-picker-btn'),
+      colorPickerBtns: document.querySelectorAll('.color-picker-btn')
+    };
+
+    // サンプルCSVデータ
+    const SAMPLE_CSV = `Apple,りんご,バラ科リンゴ属の果実。
+Banana,バナナ,熱帯の多年生草本から採れる果実。
+Cherry,さくらんぼ,サクラ属の落葉高木。
+Dog,いぬ,身近なネコ目イヌ科の哺乳類。
+Elephant,ぞう,陸上最大の長鼻目ゾウ科の哺乳類。`;
+
+    // --- 設定値のロード / セーブ機能 ---
+    function loadSettings() {
+      // ランダムフラグ
+      const savedRandom = localStorage.getItem(State.KEYS.RANDOM);
+      if (savedRandom !== null) {
+        DOM.checkRandom.checked = savedRandom === 'true';
+      }
+
+      // グループサイズ
+      const savedGroupSize = localStorage.getItem(State.KEYS.GROUP_SIZE);
+      if (savedGroupSize !== null) {
+        DOM.inputGroupSize.value = savedGroupSize;
+      }
+
+      // ペン色
+      const savedColor = localStorage.getItem(State.KEYS.PEN_COLOR);
+      if (savedColor) {
+        State.currentPenColor = savedColor;
+        applyPenColorUI(savedColor);
+      }
+
+      // ペンサイズ
+      const savedSize = localStorage.getItem(State.KEYS.PEN_SIZE);
+      if (savedSize) {
+        State.currentPenWidth = parseFloat(savedSize);
+        applyPenSizeUI(State.currentPenWidth);
+      }
+
+      // 前回問題キャッシュのロード
+      try {
+        const savedRaw = localStorage.getItem(State.KEYS.RAW_DATA);
+        if (savedRaw) {
+          State.lastUploadedRawData = JSON.parse(savedRaw);
+          DOM.restartLastContainer.classList.remove('hidden');
+        }
+      } catch (e) {
+        console.error('キャッシュデータのパースエラー:', e);
+      }
+    }
+
+    function saveSetting(key, value) {
+      localStorage.setItem(key, value);
+    }
+
+    // --- 高精細・超軽量手書きキャンバス処理クラス ---
+    class OptimizedCanvas {
+      constructor(canvasEl) {
+        this.canvas = canvasEl;
+        this.ctx = this.canvas.getContext('2d');
+        this.isDrawing = false;
+        
+        // 描画ストロークのバッファ、滑らかなベジェ曲線制御用
+        this.lastX = 0;
+        this.lastY = 0;
+        
+        // requestAnimationFrame用フラグ
+        this.ticking = false;
+        this.pendingPoints = [];
+
+        // Pointer Eventsでマウス・タッチ・スタイラスを統合制御
+        this.canvas.addEventListener('pointerdown', this.onPointerDown.bind(this));
+        this.canvas.addEventListener('pointermove', this.onPointerMove.bind(this));
+        this.canvas.addEventListener('pointerup', this.onPointerUp.bind(this));
+        this.canvas.addEventListener('pointercancel', this.onPointerUp.bind(this));
+
+        window.addEventListener('resize', this.debouncedResize.bind(this));
+        this.resizeTimeout = null;
+      }
+
+      debouncedResize() {
+        clearTimeout(this.resizeTimeout);
+        this.resizeTimeout = setTimeout(() => this.resize(), 150);
+      }
+
+      // Retina等の高DPI対応サイズフィッティング
+      resize() {
+        const backup = this.canvas.toDataURL(); // 現描画のバックアップ
+        const dpr = window.devicePixelRatio || 1;
+        const rect = this.canvas.getBoundingClientRect();
+
+        this.canvas.width = rect.width * dpr;
+        this.canvas.height = rect.height * dpr;
+        
+        this.ctx.scale(dpr, dpr);
+        this.applyConfig();
+
+        // 描画の復元
+        const img = new Image();
+        img.onload = () => {
+          this.ctx.drawImage(img, 0, 0, rect.width, rect.height);
+          this.applyConfig();
+        };
+        img.src = backup;
+      }
+
+      applyConfig() {
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.strokeStyle = State.currentPenColor;
+        this.ctx.lineWidth = State.currentPenWidth;
+      }
+
+      clear() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.pendingPoints = [];
+      }
+
+      getCoords(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+          pressure: e.pressure !== undefined && e.pressure > 0 ? e.pressure : 1.0,
+          pointerType: e.pointerType // 'mouse', 'pen', 'touch'
+        };
+      }
+
+      onPointerDown(e) {
+        if (State.currentPhase === 'import' || State.isTransitioning) return;
+        this.canvas.setPointerCapture(e.pointerId);
+        this.isDrawing = true;
+        
+        const coords = this.getCoords(e);
+        this.lastX = coords.x;
+        this.lastY = coords.y;
+      }
+
+      onPointerMove(e) {
+        if (!this.isDrawing || State.isTransitioning) return;
+        const coords = this.getCoords(e);
+        this.pendingPoints.push(coords);
+
+        if (!this.ticking) {
+          requestAnimationFrame(this.drawFrame.bind(this));
+          this.ticking = true;
+        }
+      }
+
+      drawFrame() {
+        if (this.pendingPoints.length === 0) {
+          this.ticking = false;
+          return;
+        }
+
+        this.ctx.beginPath();
+        for (let i = 0; i < this.pendingPoints.length; i++) {
+          const pt = this.pendingPoints[i];
+
+          // 筆圧感知（スタイラスの場合、ベース太さにダイナミックに変化。指やマウスは標準維持）
+          if (pt.pointerType === 'pen' && pt.pressure > 0) {
+            // 最低 30% 〜 最高 150% の範囲で太さを筆圧追従
+            this.ctx.lineWidth = State.currentPenWidth * (0.3 + pt.pressure * 1.2);
+          } else {
+            this.ctx.lineWidth = State.currentPenWidth;
+          }
+
+          this.ctx.moveTo(this.lastX, this.lastY);
+          this.ctx.lineTo(pt.x, pt.y);
+          this.ctx.stroke();
+
+          this.lastX = pt.x;
+          this.lastY = pt.y;
+        }
+
+        this.pendingPoints = [];
+        this.ticking = false;
+      }
+
+      onPointerUp(e) {
+        if (this.isDrawing) {
+          this.isDrawing = false;
+          try {
+            this.canvas.releasePointerCapture(e.pointerId);
+          } catch(err) {}
+        }
+      }
+
+      getDataURL() {
+        return this.canvas.toDataURL();
+      }
+
+      loadState(dataURL) {
+        this.clear();
+        if (!dataURL) return;
+        const img = new Image();
+        img.onload = () => {
+          const rect = this.canvas.getBoundingClientRect();
+          this.ctx.drawImage(img, 0, 0, rect.width, rect.height);
+          this.applyConfig();
+        };
+        img.src = dataURL;
+      }
+    }
+
+    const globalCanvas = new OptimizedCanvas(DOM.canvas);
+
+    // --- 高性能CSVパーサー (ダブルクォート内のカンマやエスケープ、改行を正しく判定) ---
+    function parseCSV(text) {
+      const parsedData = [];
+      const len = text.length;
+      let i = 0;
+
+      while (i < len) {
+        let fields = [];
+        // 行単位のパース
+        while (i < len) {
+          let field = "";
+          // 空白をスキップ
+          while (i < len && (text[i] === ' ' || text[i] === '\t')) {
+            i++;
+          }
+          if (i < len && (text[i] === '"' || text[i] === "'")) {
+            const quote = text[i];
+            i++; // クォート開始をスキップ
+            while (i < len) {
+              if (text[i] === quote) {
+                if (i + 1 < len && text[i + 1] === quote) {
+                  // エスケープされたクォート
+                  field += quote;
+                  i += 2;
+                } else {
+                  i++; // クォート終了をスキップ
+                  break;
+                }
+              } else {
+                field += text[i];
+                i++;
+              }
+            }
+          } else {
+            // クォートなしフィールド
+            while (i < len && text[i] !== ',' && text[i] !== '\n' && text[i] !== '\r') {
+              field += text[i];
+              i++;
+            }
+          }
+          fields.push(field.trim());
+
+          if (i < len && text[i] === ',') {
+            i++;
+          } else if (i < len && (text[i] === '\n' || text[i] === '\r')) {
+            if (text[i] === '\r' && i + 1 < len && text[i + 1] === '\n') {
+              i++;
+            }
+            i++;
+            break;
+          }
+        }
+
+        // 最初の2列(問題、答え)が存在する場合のみ有効判定
+        if (fields.length >= 2 && fields[0] !== "" && fields[1] !== "") {
+          parsedData.push({
+            id: 'q_' + Math.random().toString(36).substr(2, 9),
+            question: fields[0],
+            answer: fields[1],
+            commentary: fields[2] || ''
+          });
+        }
+      }
+      return parsedData;
+    }
+
+    // --- フィッシャー–イェーツシャッフル ---
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // --- 段階的状態・UI遷移システム ---
+    function switchPhase(newPhase) {
+      State.currentPhase = newPhase;
+      
+      DOM.phaseImport.classList.add('hidden');
+      DOM.phaseTest.classList.add('hidden');
+      DOM.phaseReview.classList.add('hidden');
+
+      if (newPhase === 'import') {
+        DOM.phaseImport.classList.remove('hidden');
+        DOM.penControls.classList.add('hidden'); 
+        globalCanvas.clear();
+        
+        // 前回履歴があれば再表示ボタンを表示
+        if (State.lastUploadedRawData && State.lastUploadedRawData.length > 0) {
+          DOM.restartLastContainer.classList.remove('hidden');
+        } else {
+          DOM.restartLastContainer.classList.add('hidden');
+        }
+      } else if (newPhase === 'test') {
+        DOM.phaseTest.classList.remove('hidden');
+        DOM.penControls.classList.remove('hidden'); 
+        initTestPhase();
+      } else if (newPhase === 'review') {
+        DOM.phaseReview.classList.remove('hidden');
+        DOM.penControls.classList.remove('hidden'); 
+        initReviewPhase();
+      }
+    }
+
+    // 直接インポートへ戻る滑らかな再スタート
+    function triggerDirectAutoRestart() {
+      DOM.body.classList.add('fade-out');
+      setTimeout(() => {
+        State.originalList = [];
+        State.currentList = [];
+        State.userAnswers = {};
+        State.wrongQuestions = [];
+        State.isFirstRound = true;
+        State.studyGroups = [];
+        State.currentGroupIndex = 0;
+
+        switchPhase('import');
+        DOM.body.classList.remove('fade-out');
+        DOM.body.classList.add('fade-in');
+        
+        setTimeout(() => {
+          DOM.body.classList.remove('fade-in');
+          State.isTransitioning = false; 
+        }, 250);
+      }, 250); 
+    }
+
+    // 0.25秒待機 ➔ パッと白画面 ➔ 瞬時にデータ差し替え ➔ 0.5秒キープ ➔ 滑らかに表示
+    function transitionPhase(dataAction) {
+      if (State.isTransitioning) return; 
+      State.isTransitioning = true; 
+
+      setTimeout(() => {
+        DOM.body.classList.add('fade-out');
+        
+        dataAction();
+
+        setTimeout(() => {
+          if (State.currentPhase !== 'import') {
+            DOM.body.classList.remove('fade-out');
+            DOM.body.classList.add('fade-in');
+            setTimeout(() => {
+              DOM.body.classList.remove('fade-in');
+              State.isTransitioning = false; 
+            }, 250);
+          }
+        }, 400); 
+      }, 400); 
+    }
+
+    // 進捗タスクバー更新（再描画コストを抑制するキャッシュ検証付き）
+    let lastRenderProgress = { mode: '', curIndex: -1, curLen: -1, grpIndex: -1, grpLen: -1 };
+
+    function updateTaskProgress(mode) {
+      const currentListLength = State.currentList.length;
+      const totalGroups = State.studyGroups.length;
+      
+      // 前回のレンダリングと同一状態であれば処理をスキップ (レンダリング最適化)
+      if (
+        lastRenderProgress.mode === mode &&
+        lastRenderProgress.curIndex === State.currentIndex &&
+        lastRenderProgress.curLen === currentListLength &&
+        lastRenderProgress.grpIndex === State.currentGroupIndex &&
+        lastRenderProgress.grpLen === totalGroups
+      ) {
+        return;
+      }
+
+      lastRenderProgress = {
+        mode,
+        curIndex: State.currentIndex,
+        curLen: currentListLength,
+        grpIndex: State.currentGroupIndex,
+        grpLen: totalGroups
+      };
+
+      if (totalGroups === 0 || currentListLength === 0) return;
+
+      // 1. 全体グループ進捗
+      if (State.settingGroupSize > 0 && totalGroups > 1) {
+        const completedGroups = State.currentGroupIndex;
+        const confirmedPercent = (completedGroups / totalGroups) * 100;
+        const currentPercent = ((completedGroups + 1) / totalGroups) * 100;
+
+        const targetGrpBarConf = mode === 'test' ? DOM.testGroupBarConfirmed : DOM.reviewGroupBarConfirmed;
+        const targetGrpBarCur = mode === 'test' ? DOM.testGroupBarCurrent : DOM.reviewGroupBarCurrent;
+        const targetGrpText = mode === 'test' ? DOM.testGroupText : DOM.reviewGroupText;
+        const targetGrpBarContainer = mode === 'test' ? DOM.testGroupBarContainer : DOM.reviewGroupBarContainer;
+        const targetGrpTextContainer = mode === 'test' ? DOM.testGroupTextContainer : DOM.reviewGroupTextContainer;
+
+        targetGrpBarContainer.classList.remove('hidden');
+        targetGrpTextContainer.classList.remove('hidden');
+
+        targetGrpBarConf.style.width = `${confirmedPercent}%`;
+        targetGrpBarCur.style.width = `${currentPercent}%`;
+        targetGrpText.textContent = `グループ ${completedGroups + 1} / ${totalGroups}`;
+      } else {
+        DOM.testGroupBarContainer.classList.add('hidden');
+        DOM.testGroupTextContainer.classList.add('hidden');
+        DOM.reviewGroupBarContainer.classList.add('hidden');
+        DOM.reviewGroupTextContainer.classList.add('hidden');
+      }
+
+      // 2. 現在のグループ内の問題進捗
+      const activeCurrent = State.currentIndex;
+      const currentPercent = (activeCurrent / currentListLength) * 100;
+
+      if (mode === 'test') {
+        DOM.testProgressBarConfirmed.style.width = `0%`;
+        DOM.testProgressBarCurrent.style.width = `${currentPercent}%`;
+        if (State.currentIndex < currentListLength) {
+          DOM.testProgressText.textContent = `問題 ${activeCurrent + 1} / ${currentListLength}`;
+        }
+      } else if (mode === 'review') {
+        DOM.reviewProgressBarConfirmed.style.width = `0%`;
+        DOM.reviewProgressBarCurrent.style.width = `${currentPercent}%`;
+        if (State.currentIndex < currentListLength) {
+          DOM.reviewProgressText.textContent = `丸付け ${activeCurrent + 1} / ${currentListLength}`;
+        }
+      }
+    }
+
+    // --- セッション学習の開始 ---
+    function startLearning(problemData) {
+      const shouldShuffle = DOM.checkRandom.checked;
+      const sizeVal = Math.max(0, parseInt(DOM.inputGroupSize.value) || 0);
+      
+      State.settingGroupSize = sizeVal;
+      
+      // ユーザー設定をlocalStorageに即時保存して拡張性を向上
+      saveSetting(State.KEYS.RANDOM, shouldShuffle);
+      saveSetting(State.KEYS.GROUP_SIZE, sizeVal);
+
+      State.originalList = [...problemData];
+      if (shouldShuffle) {
+        State.originalList = shuffleArray(State.originalList);
+      }
+
+      // スライシングによる問題の分割
+      State.studyGroups = [];
+      if (sizeVal === 0) {
+        State.studyGroups.push(State.originalList);
+      } else {
+        for (let i = 0; i < State.originalList.length; i += sizeVal) {
+          State.studyGroups.push(State.originalList.slice(i, i + sizeVal));
+        }
+      }
+
+      State.currentGroupIndex = 0;
+      State.currentList = [...State.studyGroups[State.currentGroupIndex]];
+
+      State.userAnswers = {};
+      State.wrongQuestions = [];
+      State.isFirstRound = true;
+
+      // 差分キャッシュのクリーン
+      lastRenderProgress = { mode: '', curIndex: -1, curLen: -1, grpIndex: -1, grpLen: -1 };
+
+      switchPhase('test');
+    }
+
+    // --- 複数ファイルのマージングインポートシステム ---
+    async function handleFileImport(files) {
+      if (files.length === 0) return;
+
+      const promises = Array.from(files).map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = (err) => reject(err);
+          reader.readAsText(file);
+        });
+      });
+
+      try {
+        const fileContents = await Promise.all(promises);
+        let mergedData = [];
+
+        fileContents.forEach(content => {
+          mergedData = mergedData.concat(parseCSV(content));
+        });
+
+        if (mergedData.length === 0) {
+          showToast("有効な暗記データ（CSV形式）が見つかりませんでした。");
+          return;
+        }
+
+        // 生データを状態及び、次回利用の為の永続ローカルストレージへ保存
+        State.lastUploadedRawData = mergedData;
+        saveSetting(State.KEYS.RAW_DATA, JSON.stringify(mergedData));
+
+        startLearning(mergedData);
+      } catch (err) {
+        showToast("ファイルの読み込み中にエラーが発生しました。");
+        console.error(err);
+      }
+    }
+
+    // メッセージ提示（iframe内対応のためalertではなくトーストをボディ上に生成）
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-4 py-2 text-xs font-semibold rounded shadow-md pointer-events-auto transition-opacity duration-300';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+
+    // --- 各フェーズ初期化・イベント ---
+
+    // 1. 出題・解答フェーズ（Testing Phase）
+    function initTestPhase() {
+      State.currentIndex = 0;
+      State.userAnswers = {};
+      showQuestion();
+    }
+
+    function showQuestion() {
+      updateTaskProgress('test');
+      const activeQ = State.currentList[State.currentIndex];
+      if (!activeQ) return;
+
+      DOM.testQuestion.textContent = activeQ.question;
+      globalCanvas.clear();
+      globalCanvas.resize();
+    }
+
+    DOM.btnClearTestCanvas.addEventListener('click', () => {
+      if (State.isTransitioning) return;
+      globalCanvas.clear();
+    });
+
+    DOM.btnSubmitTest.addEventListener('click', () => {
+      if (State.isTransitioning) return;
+      const activeQ = State.currentList[State.currentIndex];
+      if (!activeQ) return;
+
+      State.userAnswers[activeQ.id] = globalCanvas.getDataURL();
+      State.currentIndex++;
+      updateTaskProgress('test');
+
+      if (State.currentIndex < State.currentList.length) {
+        showQuestion();
+      } else {
+        transitionPhase(() => {
+          switchPhase('review');
+        });
+      }
+    });
+
+    // 2. 振り返り・採点フェーズ（Review Phase）
+    function initReviewPhase() {
+      State.currentIndex = 0;
+      State.wrongQuestions = [];
+      showReviewItem();
+    }
+
+    function showReviewItem() {
+      updateTaskProgress('review');
+      const activeQ = State.currentList[State.currentIndex];
+      if (!activeQ) return;
+
+      const userAnsImg = State.userAnswers[activeQ.id] || '';
+
+      DOM.reviewQuestion.textContent = activeQ.question;
+      DOM.reviewModelAnswer.textContent = activeQ.answer;
+
+      globalCanvas.loadState(userAnsImg);
+
+      if (activeQ.commentary) {
+        DOM.reviewCommentary.textContent = activeQ.commentary;
+        DOM.reviewCommentaryBox.classList.remove('hidden');
+      } else {
+        DOM.reviewCommentaryBox.classList.add('hidden');
+      }
+
+      DOM.normalReviewButtons.classList.remove('hidden');
+      DOM.retypeActionButtons.classList.add('hidden');
+    }
+
+    DOM.btnSelfCorrect.addEventListener('click', () => {
+      if (State.isTransitioning) return;
+      goToNextReviewItem();
+    });
+
+    DOM.btnSelfWrong.addEventListener('click', () => {
+      if (State.isTransitioning) return;
+      const activeQ = State.currentList[State.currentIndex];
+      if (!activeQ) return;
+
+      State.wrongQuestions.push(activeQ);
+      globalCanvas.clear();
+
+      DOM.normalReviewButtons.classList.add('hidden');
+      DOM.retypeActionButtons.classList.remove('hidden');
+    });
+
+    DOM.btnClearRetypeCanvas.addEventListener('click', () => {
+      if (State.isTransitioning) return;
+      globalCanvas.clear();
+    });
+
+    DOM.btnSubmitRetype.addEventListener('click', () => {
+      if (State.isTransitioning) return;
+      goToNextReviewItem();
+    });
+
+    function goToNextReviewItem() {
+      State.currentIndex++;
+      updateTaskProgress('review');
+
+      if (State.currentIndex < State.currentList.length) {
+        showReviewItem();
+      } else {
+        transitionPhase(() => {
+          evaluateRoundResult();
+        });
+      }
+    }
+
+    // 3. ループ判定ロジック
+    function evaluateRoundResult() {
+      if (State.wrongQuestions.length > 0) {
+        // 間違えた問題を再テスト
+        State.currentList = [...State.wrongQuestions];
+        State.isFirstRound = false;
+        switchPhase('test');
+      } else {
+        // 完璧になった場合
+        if (State.isFirstRound) {
+          // ストレートクリア ➔ 次のグループ
+          goToNextGroupOrFinish();
+        } else {
+          // 間違え直しテストを完了。定着確認のために現在のグループを丸ごと1周テスト
+          State.currentList = [...State.studyGroups[State.currentGroupIndex]];
+          State.isFirstRound = true;
+          switchPhase('test');
+        }
+      }
+    }
+
+    function goToNextGroupOrFinish() {
+      State.currentGroupIndex++;
+      if (State.currentGroupIndex < State.studyGroups.length) {
+        State.currentList = [...State.studyGroups[State.currentGroupIndex]];
+        State.isFirstRound = true;
+        switchPhase('test');
+      } else {
+        triggerDirectAutoRestart();
+      }
+    }
+
+    // --- ペン・ブラシ設定 UI更新 ---
+    function applyPenColorUI(selectedColor) {
+      DOM.colorPickerBtns.forEach(btn => {
+        const isMatch = btn.getAttribute('data-color') === selectedColor;
+        btn.classList.toggle('border-2', isMatch);
+        btn.classList.toggle('border-black', isMatch);
+        btn.classList.toggle('border-slate-300', !isMatch);
+      });
+
+      document.querySelectorAll('.size-dot').forEach(dot => {
+        dot.style.backgroundColor = selectedColor;
+      });
+    }
+
+    function applyPenSizeUI(selectedSize) {
+      DOM.sizePickerBtns.forEach(btn => {
+        const isMatch = parseFloat(btn.getAttribute('data-size')) === selectedSize;
+        btn.classList.toggle('border-2', isMatch);
+        btn.classList.toggle('border-black', isMatch);
+        btn.classList.toggle('border-slate-300', !isMatch);
+      });
+    }
+
+    // --- ペン UI イベント登録 ---
+    DOM.colorPickerBtns.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const color = this.getAttribute('data-color');
+        State.currentPenColor = color;
+        applyPenColorUI(color);
+        globalCanvas.applyConfig();
+        saveSetting(State.KEYS.PEN_COLOR, color);
+      });
+    });
+
+    DOM.sizePickerBtns.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const size = parseFloat(this.getAttribute('data-size'));
+        State.currentPenWidth = size;
+        applyPenSizeUI(size);
+        globalCanvas.applyConfig();
+        saveSetting(State.KEYS.PEN_SIZE, size);
+      });
+    });
+
+    // --- その他イベントリスナー ---
+    DOM.dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      DOM.dropZone.classList.add('border-black', 'bg-slate-50');
+    });
+
+    DOM.dropZone.addEventListener('dragleave', () => {
+      DOM.dropZone.classList.remove('border-black', 'bg-slate-50');
+    });
+
+    DOM.dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      DOM.dropZone.classList.remove('border-black', 'bg-slate-50');
+      handleFileImport(e.dataTransfer.files);
+    });
+
+    DOM.dropZone.addEventListener('click', () => DOM.fileInput.click());
+    DOM.fileInput.addEventListener('change', (e) => handleFileImport(e.target.files));
+
+    DOM.btnUseSample.addEventListener('click', () => {
+      const parsedSample = parseCSV(SAMPLE_CSV);
+      State.lastUploadedRawData = parsedSample;
+      saveSetting(State.KEYS.RAW_DATA, JSON.stringify(parsedSample));
+      startLearning(parsedSample);
+    });
+
+    DOM.btnToggleExample.addEventListener('click', () => {
+      DOM.exampleBox.classList.toggle('hidden');
+    });
+
+    DOM.btnRestartLast.addEventListener('click', () => {
+      if (State.lastUploadedRawData) {
+        startLearning(State.lastUploadedRawData);
+      }
+    });
+
+    DOM.btnShowHelp.addEventListener('click', () => DOM.helpModal.classList.remove('hidden'));
+    DOM.btnCloseHelp.addEventListener('click', () => DOM.helpModal.classList.add('hidden'));
+    DOM.helpModal.addEventListener('click', (e) => {
+      if (e.target === DOM.helpModal) DOM.helpModal.classList.add('hidden');
+    });
+
+    // --- 初期化起動プロセス ---
+    window.onload = function() {
+      loadSettings();
+      switchPhase('import');
+      globalCanvas.resize();
+    };
+  </script>
+</body>
+</html>
