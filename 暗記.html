@@ -143,7 +143,7 @@
                 使い方
               </button>
               <span>・</span>
-              <span class="cursor-default select-none font-mono">v3.1.0</span>
+              <span class="cursor-default select-none font-mono">v3.2.0</span>
             </div>
             
             <!-- 初期状態は非表示、例ボタンを押した時のみ展開 -->
@@ -328,7 +328,7 @@
           <p class="pl-3">画面下部のツールバーで「黒・赤・青」のペンカラー、および5段階 of 太さにいつでも切り替えられます。手書き時には軽快かつ滑らかな描画性能をお届けします。また、ランダム・分割問題数・ペンの太さや色は、お使いのブラウザ（ローカルストレージ）に安全に自動セーブ・同期されます。</p>
 
           <p class="font-bold">7. Apple Pencil (スタイラスペン) 専用手書き保護</p>
-          <p class="pl-3">アプリを立ち上げてから、一度でもApple Pencil等の専用ペンで画面に線を描くと、自動的に「ペン入力のみを受け付ける保護モード」に入ります。以降は、手が画面に触れても余計な線が書かれなくなるため快適に学習できます（各種ボタンやコントロールの操作は、引き続き指でも行えます）。この保護モードはファイルを再度開いたときにリセットされます。</p>
+          <p class="pl-3">アプリを立ち上げてから、一度でもApple Pencil等の専用ペンで画面に線を描くと、自動的に「ペン入力のみを受け付ける保護モード」に入ります。以降は、手が画面に触れても余計な線が書かれなくなるため快適に学習できます（各種ボタンやコントロールの操作は、引き続いて指でも行えます）。この保護モードはファイルを再度開いたときにリセットされます。</p>
         </div>
       </div>
       <div class="flex justify-end pt-4 border-t border-slate-100 mt-2">
@@ -525,7 +525,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       return 'q_' + Math.random().toString(36).substr(2, 9);
     }
 
-    // --- 全画面手書きキャンバス操作クラス (Pointer Events統一版 & Apple Pencil割り込み検知) ---
+    // --- 全画面手書きキャンバス操作クラス (Pointer Events統一版 & Apple Pencil割り込み検知 ➔ 超高精度・間引きゼロ補正版) ---
     class GlobalHandwritingCanvas {
       constructor(canvasElement) {
         this.canvas = canvasElement;
@@ -541,10 +541,13 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         // Pointer Events による一元化
         this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
         this.canvas.addEventListener('pointermove', (e) => this.draw(e));
-        this.canvas.addEventListener('pointerup', (e) => this.stopDrawing(e));
-        this.canvas.addEventListener('pointercancel', (e) => this.stopDrawing(e));
 
-        // ★追加：ホバー(画面スレスレにペンを近づけた状態)で先回りしてPencilを検知し、手のひらが触れる前にロックを起動
+        // ★バグ修正：画面の端や外でペンを離した場合にポインター状態が「詰まる」バグを完璧に塞ぐため、
+        // canvas上だけでなく、window全体でポインターの離脱・キャンセルを常時拾い上げて完全にリリースします。
+        window.addEventListener('pointerup', (e) => this.stopDrawing(e));
+        window.addEventListener('pointercancel', (e) => this.stopDrawing(e));
+
+        // ★ホバー(接近ホバー)で先回りしてPencilを検知
         this.canvas.addEventListener('pointerover', (e) => this.detectPencilHover(e));
         this.canvas.addEventListener('pointerenter', (e) => this.detectPencilHover(e));
 
@@ -556,7 +559,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         });
       }
 
-      // Apple Pencilのホバー（近接ホバー）を検知して先回りでペン専用モードを有効化
       detectPencilHover(e) {
         if (e.pointerType === 'pen' && !this.penOnlyMode) {
           this.activatePenOnlyMode();
@@ -600,32 +602,27 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         // インポート時、または一巡アニメーション中は反応しない
         if (currentPhase === 'import' || isTransitioning) return;
 
-        // 一度でも Apple Pencil (pointerType === 'pen') を検知したら専用ロックをONにする
+        // Apple Pencilの割り込み検知
         if (e.pointerType === 'pen') {
           if (!this.penOnlyMode) {
             this.activatePenOnlyMode();
           }
           
-          // ★【競合の強制解放システム】
-          // 指などが画面に触れて誤検知している最中でも、Pencilの新たなポインターイベントが入った瞬間に、
-          // 以前のポインターを強制的に切断・破棄して、直ちにPencilを「activePointerId」に割り当てます。
-          // これにより、ポインターキャプチャによる前のポインター解放の遅延を待つことなく上書きします。
+          // タッチとペンの同時衝突時に描画を強制上書き
           if (this.drawing && this.activePointerId !== e.pointerId) {
             this.drawing = false;
             this.activePointerId = null;
           }
         }
 
-        // ペン専用モードがONの時、指タッチによる不要な描画開始イベントは、即時キャンセルし、バブル伝播を揉み消して誤作動を塞ぎます
         if (this.penOnlyMode && e.pointerType !== 'pen') {
           e.preventDefault();
           e.stopPropagation();
           return;
         }
 
-        // 描画ステートを開始
         this.drawing = true;
-        this.activePointerId = e.pointerId; // 新しい有効なポインターIDを即時適用
+        this.activePointerId = e.pointerId;
 
         const pos = this.getPointerPos(e);
         this.lastX = pos.x;
@@ -633,7 +630,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       }
 
       draw(e) {
-        // ペン専用モードが有効な状態で、指などの非ペンオブジェクトによる余分なイベントを完全にシャットアウト
         if (this.penOnlyMode && e.pointerType !== 'pen') {
           e.preventDefault();
           e.stopPropagation();
@@ -641,35 +637,36 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         }
 
         if (!this.drawing) return;
-        
-        // ロックしているポインターID以外の描画イベント（競合タッチなど）を完全に無視する
         if (e.pointerId !== this.activePointerId) return;
 
-        const pos = this.getPointerPos(e);
+        // ★【高速ストローク・間引きゼロ補正システム】
+        // ブラウザ描画フレームの都合で間引かれた「生イベント」を未間引きで完全に回収し、
+        // どんなに素早いペン滑りでも完璧に滑らかな一連のストローク（軌跡）としてキャンバスに繋ぎます。
+        const coalescedEvents = (e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
         
         this.ctx.beginPath();
         this.ctx.moveTo(this.lastX, this.lastY);
-        this.ctx.lineTo(pos.x, pos.y);
+
+        for (const ev of coalescedEvents) {
+          const pos = this.getPointerPos(ev);
+          this.ctx.lineTo(pos.x, pos.y);
+          this.lastX = pos.x;
+          this.lastY = pos.y;
+        }
+
         this.ctx.stroke();
-        
-        this.lastX = pos.x;
-        this.lastY = pos.y;
       }
 
       stopDrawing(e) {
-        // ペン専用モード下での指によるポインター離脱イベント干渉をブロック
         if (this.penOnlyMode && e && e.pointerType !== 'pen') {
-          e.preventDefault();
-          e.stopPropagation();
           return;
         }
 
-        // 終了しようとしているポインターIDが、現在お絵描き中のものと一致している場合のみ終了
+        // ペンの離脱を完全にトラップ
         if (e && e.pointerId === this.activePointerId) {
           this.drawing = false;
           this.activePointerId = null;
         } else if (!e) {
-          // フォールバック
           this.drawing = false;
           this.activePointerId = null;
         }
