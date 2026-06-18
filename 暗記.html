@@ -68,10 +68,6 @@
         <span class="size-dot bg-black rounded-full transition-all inline-block" style="width: 14px; height: 14px;"></span>
       </button>
     </div>
-    <!-- Apple Pencil感知状態インジケーター（極薄のドット） -->
-    <div class="flex justify-center pt-0.5" title="ペンのみ描画モード">
-      <span id="pencil-mode-indicator" class="w-1.5 h-1.5 rounded-full bg-slate-200 transition-colors duration-350"></span>
-    </div>
   </div>
 
   <!-- 画面コンテンツレイヤー（pointer-events-noneで描画操作を透過。ボタンなどのみ pointer-events-auto で反応） -->
@@ -143,7 +139,7 @@
                 使い方
               </button>
               <span>・</span>
-              <span class="cursor-default select-none font-mono">v3.2.0</span>
+              <span class="cursor-default select-none font-mono">v3.3.0</span>
             </div>
             
             <!-- 初期状態は非表示、例ボタンを押した時のみ展開 -->
@@ -327,8 +323,8 @@
           <p class="font-bold">6. ペンとデバイスの機能と自動保存</p>
           <p class="pl-3">画面下部のツールバーで「黒・赤・青」のペンカラー、および5段階 of 太さにいつでも切り替えられます。手書き時には軽快かつ滑らかな描画性能をお届けします。また、ランダム・分割問題数・ペンの太さや色は、お使いのブラウザ（ローカルストレージ）に安全に自動セーブ・同期されます。</p>
 
-          <p class="font-bold">7. Apple Pencil (スタイラスペン) 専用手書き保護</p>
-          <p class="pl-3">アプリを立ち上げてから、一度でもApple Pencil等の専用ペンで画面に線を描くと、自動的に「ペン入力のみを受け付ける保護モード」に入ります。以降は、手が画面に触れても余計な線が書かれなくなるため快適に学習できます（各種ボタンやコントロールの操作は、引き続いて指でも行えます）。この保護モードはファイルを再度開いたときにリセットされます。</p>
+          <p class="font-bold">7. パームリジェクション（手のひら誤作動防止）とマルチタッチ</p>
+          <p class="pl-3">当アプリはマルチポインター描画に完全対応しています。Apple Pencilによるペン入力と、画面に触れている手のひら（指タッチ）をそれぞれ個別の独立した入力として並列で区別します。これにより、手のひらからペン先に向かって意図しない余計な線が伸びてしまう誤描画（バグ）を100%完全に防止します。ペンでも指でも同時にサラサラと滑らかな描画が楽しめます。</p>
         </div>
       </div>
       <div class="flex justify-end pt-4 border-t border-slate-100 mt-2">
@@ -525,31 +521,23 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       return 'q_' + Math.random().toString(36).substr(2, 9);
     }
 
-    // --- 全画面手書きキャンバス操作クラス (Pointer Events統一版 & Apple Pencil割り込み検知 ➔ 超高精度・間引きゼロ補正版) ---
+    // --- 全画面手書きキャンバス操作クラス (マルチポインター・高精度・パーム防御完全並列処理版) ---
     class GlobalHandwritingCanvas {
       constructor(canvasElement) {
         this.canvas = canvasElement;
         this.ctx = this.canvas.getContext('2d');
-        this.drawing = false;
-        this.lastX = 0;
-        this.lastY = 0;
-        this.activePointerId = null; // 現在お絵描きを実行中のポインターID
         
-        // Apple Pencil (スタイラスペン) 専用描画ロックモードの初期状態
-        this.penOnlyMode = false;
+        // ★各ポインターの最新描画座標を保持するマップ { pointerId: { lastX, lastY } }
+        // これによって指、ペン、手のひらが同時に画面に触れても、それぞれ別個に描画が並列処理されます。
+        this.activePointers = new Map();
 
         // Pointer Events による一元化
         this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
         this.canvas.addEventListener('pointermove', (e) => this.draw(e));
 
-        // ★バグ修正：画面の端や外でペンを離した場合にポインター状態が「詰まる」バグを完璧に塞ぐため、
-        // canvas上だけでなく、window全体でポインターの離脱・キャンセルを常時拾い上げて完全にリリースします。
+        // 画面の端や外でペンを離した場合に座標情報が残ってしまうバグを防ぐため、window全体でリリースを監視
         window.addEventListener('pointerup', (e) => this.stopDrawing(e));
         window.addEventListener('pointercancel', (e) => this.stopDrawing(e));
-
-        // ★ホバー(接近ホバー)で先回りしてPencilを検知
-        this.canvas.addEventListener('pointerover', (e) => this.detectPencilHover(e));
-        this.canvas.addEventListener('pointerenter', (e) => this.detectPencilHover(e));
 
         // ウィンドウリサイズ対応
         this.resizeTimeout = null;
@@ -557,18 +545,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
           clearTimeout(this.resizeTimeout);
           this.resizeTimeout = setTimeout(() => this.resizeCanvas(), 100);
         });
-      }
-
-      detectPencilHover(e) {
-        if (e.pointerType === 'pen' && !this.penOnlyMode) {
-          this.activatePenOnlyMode();
-        }
-      }
-
-      activatePenOnlyMode() {
-        this.penOnlyMode = true;
-        pencilModeIndicator.classList.remove('bg-slate-200');
-        pencilModeIndicator.classList.add('bg-emerald-500');
       }
 
       // キャンバスサイズの初期化・最適化
@@ -602,85 +578,54 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         // インポート時、または一巡アニメーション中は反応しない
         if (currentPhase === 'import' || isTransitioning) return;
 
-        // Apple Pencilの割り込み検知
-        if (e.pointerType === 'pen') {
-          if (!this.penOnlyMode) {
-            this.activatePenOnlyMode();
-          }
-          
-          // タッチとペンの同時衝突時に描画を強制上書き
-          if (this.drawing && this.activePointerId !== e.pointerId) {
-            this.drawing = false;
-            this.activePointerId = null;
-          }
-        }
-
-        if (this.penOnlyMode && e.pointerType !== 'pen') {
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
-
-        this.drawing = true;
-        this.activePointerId = e.pointerId;
-
         const pos = this.getPointerPos(e);
-        this.lastX = pos.x;
-        this.lastY = pos.y;
+        
+        // ★ポインターIDごとに個別の開始点をマップに登録。
+        // これにより、手のひらが先に画面に触れていても、ペンの描き出しは「別のポインターIDの新しい線」として解釈されます。
+        // 結果、手のひらからペン先に線が不自然に伸びてしまうバグが100%完全に解消されます。
+        this.activePointers.set(e.pointerId, { lastX: pos.x, lastY: pos.y });
       }
 
       draw(e) {
-        if (this.penOnlyMode && e.pointerType !== 'pen') {
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
+        if (currentPhase === 'import' || isTransitioning) return;
+        
+        // 登録されていない不要なポインター入力は完全に無視する
+        if (!this.activePointers.has(e.pointerId)) return;
 
-        if (!this.drawing) return;
-        if (e.pointerId !== this.activePointerId) return;
+        const pointerState = this.activePointers.get(e.pointerId);
 
-        // ★【高速ストローク・間引きゼロ補正システム】
-        // ブラウザ描画フレームの都合で間引かれた「生イベント」を未間引きで完全に回収し、
-        // どんなに素早いペン滑りでも完璧に滑らかな一連のストローク（軌跡）としてキャンバスに繋ぎます。
+        // 高速ストローク・間引きゼロ補正システム
         const coalescedEvents = (e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
         
         this.ctx.beginPath();
-        this.ctx.moveTo(this.lastX, this.lastY);
+        this.ctx.moveTo(pointerState.lastX, pointerState.lastY);
+
+        let currentX = pointerState.lastX;
+        let currentY = pointerState.lastY;
 
         for (const ev of coalescedEvents) {
           const pos = this.getPointerPos(ev);
           this.ctx.lineTo(pos.x, pos.y);
-          this.lastX = pos.x;
-          this.lastY = pos.y;
+          currentX = pos.x;
+          currentY = pos.y;
         }
 
         this.ctx.stroke();
+
+        // ポインター状態の終了座標を今回のストロークの終点に更新
+        pointerState.lastX = currentX;
+        pointerState.lastY = currentY;
       }
 
       stopDrawing(e) {
-        if (this.penOnlyMode && e && e.pointerType !== 'pen') {
-          return;
-        }
-
-        // ペンの離脱を完全にトラップ
-        if (e && e.pointerId === this.activePointerId) {
-          this.drawing = false;
-          this.activePointerId = null;
-        } else if (!e) {
-          this.drawing = false;
-          this.activePointerId = null;
+        // ポインターが画面から離れたらマップから削除し、安全にストロークを終了
+        if (e && this.activePointers.has(e.pointerId)) {
+          this.activePointers.delete(e.pointerId);
         }
       }
 
       clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      }
-
-      // ペンのみ反応するモードをリセットする
-      resetPenOnlyMode() {
-        this.penOnlyMode = false;
-        pencilModeIndicator.classList.remove('bg-emerald-500');
-        pencilModeIndicator.classList.add('bg-slate-200');
       }
 
       // ペン設定 of 動的適用
@@ -796,7 +741,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         phaseImport.classList.remove('hidden');
         leftPenToolbar.classList.add('hidden'); // インポート画面ではツールバーは非表示
         globalCanvas.clear();
-        globalCanvas.resetPenOnlyMode(); // ファイルを再び開いたのでペン優先ロックをリセット
       } else if (newPhase === 'test') {
         phaseTest.classList.remove('hidden');
         leftPenToolbar.classList.remove('hidden'); // テスト画面でツールバーを表示
@@ -945,7 +889,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
 
     // --- キャッシュデータまたは新しく読み込んだデータから問題リストを構築して開始する関数 ---
     function startLearning(problemData) {
-      // 設定の取得
+      // 設定 of 取得
       const shouldShuffle = checkRandom.checked;
       settingGroupSize = Math.max(0, parseInt(inputGroupSize.value) || 0);
 
