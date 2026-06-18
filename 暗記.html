@@ -139,7 +139,7 @@
                 使い方
               </button>
               <span>・</span>
-              <span class="cursor-default select-none font-mono">v3.3.0</span>
+              <span class="cursor-default select-none font-mono">v3.4.1</span>
             </div>
             
             <!-- 初期状態は非表示、例ボタンを押した時のみ展開 -->
@@ -208,7 +208,7 @@
         <section id="phase-review" class="hidden space-y-4 w-full h-full flex flex-col justify-between">
           <!-- 複数グループ対応進捗表示領域 -->
           <div class="space-y-2 w-full">
-            <!-- 1行目: 全体グループ進捗バー -->
+            <!-- 1. 行目: 全体グループ進捗バー -->
             <div id="review-group-bar-container" class="hidden relative w-full bg-white border border-slate-200 h-2.5 rounded-none overflow-hidden">
               <div id="review-group-bar-current" class="absolute left-0 top-0 h-full transition-all duration-150" style="width: 0%; background-color: #ffff00;"></div>
               <div id="review-group-bar-confirmed" class="absolute left-0 top-0 h-full transition-all duration-150" style="width: 0%; background-color: #00ff00;"></div>
@@ -276,7 +276,7 @@
                   </svg>
                 </button>
                 <!-- 決定ボタン -->
-                <button id="btn-submit-retype" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="決定">
+                <button id="btn-submit-retype" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black text-xs font-bold rounded-none transition-colors shadow-sm focus:outline-none" title="決定">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
@@ -410,6 +410,7 @@
     let originalList = [];    // インポートされた全問題リスト (マージ済み)
     let currentList = [];     // 現在取り組んでいるフェーズ・グループの対象リスト
     let userAnswers = {};     // ユーザーの手書き解答データURL { id: canvasDataURL }
+    let userHasDrawn = {};    // ★各問題において一筆でも描いたかどうかを記録するオブジェクト
     let wrongQuestions = [];   // 現在の自己採点で間違えた問題リスト
     
     let isFirstRound = true;   // グループ内の初回ラウンドか
@@ -450,7 +451,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     const phaseTest = document.getElementById('phase-test');
     const phaseReview = document.getElementById('phase-review');
     const leftPenToolbar = document.getElementById('left-pen-toolbar');
-    const pencilModeIndicator = document.getElementById('pencil-mode-indicator');
 
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
@@ -547,23 +547,58 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         });
       }
 
-      // キャンバスサイズの初期化・最適化
+      // キャンバスサイズの初期化・最適化 (Device Pixel Ratio 高画質対応)
       resizeCanvas() {
-        const backup = this.canvas.toDataURL(); // 描画内容を退避
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+        // ウィンドウの幅や高さが 0 の場合にバッファサイズがおかしくなるバグを防ぐため、1px 以上を保証する
+        const width = Math.max(1, window.innerWidth);
+        const height = Math.max(1, window.innerHeight);
         
-        // 現在の描画属性の適用
-        this.ctx.lineWidth = currentPenWidth;
+        // 1. 同期的かつ超高速に、現在の内容をDPR解像度のまま一時キャンバスに退避保存
+        const tempCanvas = document.createElement('canvas');
+        let hasContent = false;
+        
+        // コピー元のキャンバスの幅・高さが有効な場合のみ、一時キャンバスへの退避を行う
+        if (this.canvas.width > 0 && this.canvas.height > 0) {
+          tempCanvas.width = this.canvas.width;
+          tempCanvas.height = this.canvas.height;
+          const tempCtx = tempCanvas.getContext('2d');
+          try {
+            tempCtx.drawImage(this.canvas, 0, 0);
+            hasContent = true;
+          } catch (err) {
+            console.warn("Canvas drawImage temporary copy failed:", err);
+          }
+        }
+        
+        // 2. メインキャンバスの描画バッファサイズをDPR倍の解像度にしてくっきり化
+        this.canvas.width = width * dpr;
+        this.canvas.height = height * dpr;
+        
+        // 3. CSS表示サイズは物理的な画面サイズに合わせる
+        this.canvas.style.width = width + 'px';
+        this.canvas.style.height = height + 'px';
+        
+        // 4. コンテキストのスケールをDPRに設定し、描画コード側ではDPRを意識せずに済むように設定
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0); // スケールリセット
+        this.ctx.scale(dpr, dpr);
+        
+        // 5. 描画スタイルを再設定
+        this.applyPenConfig();
         this.ctx.lineCap = 'round';
-        this.ctx.strokeStyle = currentPenColor;
+        this.ctx.lineJoin = 'round';
         
-        // バックアップからの復元
-        const img = new Image();
-        img.onload = () => {
-          this.ctx.drawImage(img, 0, 0);
-        };
-        img.src = backup;
+        // 6. 保存しておいた一時キャンバスのイメージを高解像度のまま同期で描き戻す
+        if (hasContent && tempCanvas.width > 0 && tempCanvas.height > 0) {
+          this.ctx.save();
+          this.ctx.setTransform(1, 0, 0, 1, 0, 0); // コピー時はスケールをリセットして等倍転記
+          try {
+            this.ctx.drawImage(tempCanvas, 0, 0, this.canvas.width, this.canvas.height);
+          } catch (err) {
+            console.warn("Canvas drawImage restore failed:", err);
+          }
+          this.ctx.restore();
+        }
       }
 
       // 座標取得 (全画面に対する絶対座標)
@@ -578,11 +613,14 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         // インポート時、または一巡アニメーション中は反応しない
         if (currentPhase === 'import' || isTransitioning) return;
 
+        // ★【高速化＆かすれ対策の核心】
+        // モバイルブラウザによる「スクロール」「ダブルタップズーム」等のディレイ（約150〜300msのジェスチャー判定待機）を
+        // 完全にキャンセルし、画面に触れた瞬間に0ミリ秒で即座に描き始められるようにします。
+        e.preventDefault();
+
         const pos = this.getPointerPos(e);
         
-        // ★ポインターIDごとに個別の開始点をマップに登録。
-        // これにより、手のひらが先に画面に触れていても、ペンの描き出しは「別のポインターIDの新しい線」として解釈されます。
-        // 結果、手のひらからペン先に線が不自然に伸びてしまうバグが100%完全に解消されます。
+        // ポインターIDごとに個別の開始点をマップに登録。
         this.activePointers.set(e.pointerId, { lastX: pos.x, lastY: pos.y });
       }
 
@@ -591,6 +629,9 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         
         // 登録されていない不要なポインター入力は完全に無視する
         if (!this.activePointers.has(e.pointerId)) return;
+
+        // ★描き始めやストローク中のかすれを無くすため、ジェスチャー動作を完全に無効化
+        e.preventDefault();
 
         const pointerState = this.activePointers.get(e.pointerId);
 
@@ -615,6 +656,11 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         // ポインター状態の終了座標を今回のストロークの終点に更新
         pointerState.lastX = currentX;
         pointerState.lastY = currentY;
+
+        // ★追加：線が実際に1点でも描かれた場合、手書き有り状態として記録
+        if (currentPhase === 'test' && currentList[currentIndex]) {
+          userHasDrawn[currentList[currentIndex].id] = true;
+        }
       }
 
       stopDrawing(e) {
@@ -645,7 +691,16 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         if (!dataURL) return;
         const img = new Image();
         img.onload = () => {
-          this.ctx.drawImage(img, 0, 0);
+          // 高精細化（DPR）に伴い、表示サイズに合わせて等倍で描き戻す
+          const dpr = window.devicePixelRatio || 1;
+          // 描き戻し時も、描画バッファサイズが有効である場合のみ drawImage を安全に実行する
+          if (this.canvas.width > 0 && this.canvas.height > 0) {
+            try {
+              this.ctx.drawImage(img, 0, 0, this.canvas.width / dpr, this.canvas.height / dpr);
+            } catch (err) {
+              console.warn("Canvas drawImage loadState failed:", err);
+            }
+          }
           this.applyPenConfig(); // ロード後も現在のペン構成を上書き適用
         };
         img.src = dataURL;
@@ -759,6 +814,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         originalList = [];
         currentList = [];
         userAnswers = {};
+        userHasDrawn = {}; // ★手書き有無ログのリセット
         wrongQuestions = [];
         isFirstRound = true;
         studyGroups = [];
@@ -916,6 +972,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       currentList = [...studyGroups[currentGroupIndex]]; // 最初のグループから開始
 
       userAnswers = {};
+      userHasDrawn = {}; // ★手書き有無ログのリセット
       wrongQuestions = [];
       isFirstRound = true;
 
@@ -1065,6 +1122,9 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     btnClearTestCanvas.addEventListener('click', () => {
       if (isTransitioning) return; 
       globalCanvas.clear();
+      if (currentList[currentIndex]) {
+        userHasDrawn[currentList[currentIndex].id] = false; // ★消去時はお絵描き有無ログをfalseにする
+      }
     });
 
     // テスト決定ボタン
@@ -1123,6 +1183,16 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       normalReviewButtons.classList.remove('hidden');
       retypeActionButtons.classList.add('hidden');
       isRetypingMode = false;
+
+      // ★追加：手書き解答が一切ない（線が一本も書かれていない）場合は丸（⭕）ボタンを半透明にしクリック不可に制限
+      const hasDrawn = userHasDrawn[activeQuestion.id] === true;
+      if (hasDrawn) {
+        btnSelfCorrect.classList.remove('opacity-30', 'pointer-events-none');
+        btnSelfCorrect.disabled = false;
+      } else {
+        btnSelfCorrect.classList.add('opacity-30', 'pointer-events-none');
+        btnSelfCorrect.disabled = true;
+      }
     }
 
     btnSelfCorrect.addEventListener('click', () => {
@@ -1213,6 +1283,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
           b.classList.add('border', 'border-slate-300');
         });
         this.classList.remove('border', 'border-slate-300');
+        this.ctx = globalCanvas.ctx; // 変数同期保証用
         this.classList.add('border-2', 'border-black');
 
         currentPenWidth = parseFloat(this.getAttribute('data-size'));
