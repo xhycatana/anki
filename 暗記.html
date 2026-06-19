@@ -139,7 +139,7 @@
                 使い方
               </button>
               <span>・</span>
-              <span class="cursor-default select-none font-mono">v3.4.1</span>
+              <span class="cursor-default select-none font-mono">v3.5.0</span>
             </div>
             
             <!-- 初期状態は非表示、例ボタンを押した時のみ展開 -->
@@ -267,7 +267,7 @@
                 </button>
               </div>
 
-              <!-- 書き直し決定・消去ボタン（中央横並び・細長・アイコンのみ） -->
+              <!-- 書き直し決定・消去ボタン（中央横並び・細長・アイコンのみ) -->
               <div id="retype-action-buttons" class="hidden flex justify-center space-x-4 pointer-events-auto">
                 <!-- 消去ボタン -->
                 <button id="btn-clear-retype-canvas" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="消去">
@@ -626,6 +626,18 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
 
       draw(e) {
         if (currentPhase === 'import' || isTransitioning) return;
+
+        // ★【レスキュー（フェールセーフ）ロジックの実装】
+        // pointerdown が発火しなかった（取りこぼされた）場合でも、pointermove 時点でボタンが押されていれば、
+        // その瞬間の位置を最初の点としてマップに即時自動追加します。
+        // これにより「上げ下げ直すまで書けない」状態が完全に解消されます。
+        if (!this.activePointers.has(e.pointerId) && e.buttons > 0) {
+          const pos = this.getPointerPos(e);
+          this.activePointers.set(e.pointerId, { lastX: pos.x, lastY: pos.y });
+          if (currentPhase === 'test' && currentList[currentIndex]) {
+            userHasDrawn[currentList[currentIndex].id] = true;
+          }
+        }
         
         // 登録されていない不要なポインター入力は完全に無視する
         if (!this.activePointers.has(e.pointerId)) return;
