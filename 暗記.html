@@ -139,7 +139,7 @@
                 使い方
               </button>
               <span>・</span>
-              <span class="cursor-default select-none font-mono">v3.5.0</span>
+              <span class="cursor-default select-none font-mono">v3.5.2</span>
             </div>
             
             <!-- 初期状態は非表示、例ボタンを押した時のみ展開 -->
@@ -451,6 +451,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     const phaseTest = document.getElementById('phase-test');
     const phaseReview = document.getElementById('phase-review');
     const leftPenToolbar = document.getElementById('left-pen-toolbar');
+    const pencilModeIndicator = document.getElementById('pencil-mode-indicator');
 
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
@@ -538,6 +539,19 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         // 画面の端や外でペンを離した場合に座標情報が残ってしまうバグを防ぐため、window全体でリリースを監視
         window.addEventListener('pointerup', (e) => this.stopDrawing(e));
         window.addEventListener('pointercancel', (e) => this.stopDrawing(e));
+
+        // ★iOS/SafariにおけるPointer Eventの強制キャンセル（pointercancel）を防ぐ極めて重要な処置
+        // タッチ開始時・移動時のスクロールやジェスチャー判定を強制ブロックすることで、Pointerイベントが途切れるバグを根本から治療します。
+        this.canvas.addEventListener('touchstart', (e) => {
+          if (currentPhase !== 'import' && !isTransitioning) {
+            e.preventDefault();
+          }
+        }, { passive: false });
+        this.canvas.addEventListener('touchmove', (e) => {
+          if (currentPhase !== 'import' && !isTransitioning) {
+            e.preventDefault();
+          }
+        }, { passive: false });
 
         // ウィンドウリサイズ対応
         this.resizeTimeout = null;
