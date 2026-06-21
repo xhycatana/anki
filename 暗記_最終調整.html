@@ -149,7 +149,7 @@
                 使い方
               </button>
               <span>・</span>
-              <span class="cursor-default select-none font-mono">v3.9.2</span>
+              <span class="cursor-default select-none font-mono">v4.0.0</span>
             </div>
             
             <div id="example-box" class="hidden text-[10px] text-slate-400/60 font-mono text-center p-3 bg-white border border-slate-200">
@@ -194,16 +194,16 @@
               </div>
             </div>
 
-            <!-- 下端に操作ボタン（横長で細長く、真ん中の下に並べて配置。文字なしアイコンのみ） -->
-            <div class="p-2 md:p-4 mt-auto flex justify-center items-center space-x-4 pointer-events-auto">
-              <!-- 消去ボタン (横長長方形・ゴミ箱のみ) -->
-              <button id="btn-clear-test-canvas" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="消去">
+            <!-- 下端に操作ボタン（横幅制限 dead-zone を防ぐため、コンテナは透過、個別のボタンのみを入力有効にする） -->
+            <div class="p-2 md:p-4 mt-auto flex justify-center items-center space-x-4 pointer-events-none">
+              <!-- 消去ボタン -->
+              <button id="btn-clear-test-canvas" class="pointer-events-auto w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="消去">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
-              <!-- 決定ボタン (横長長方形・矢印のみ) -->
-              <button id="btn-submit-test" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="決定">
+              <!-- 決定ボタン -->
+              <button id="btn-submit-test" class="pointer-events-auto w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="決定">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
@@ -257,41 +257,32 @@
               </div>
             </div>
 
-            <!-- 自己採点・書き直し操作ボタン群 (下端に配置。真ん中の下, 細長く, アイコンのみ) -->
-            <div id="review-control-container" class="p-2 md:p-4 mt-auto pointer-events-auto flex justify-center">
-              
-              <!-- 通常採点時ボタン（白背景 + 黒枠線。中央横並び・細長・アイコンのみ） -->
-              <div id="normal-review-buttons" class="flex justify-center space-x-4 pointer-events-auto">
-                <!-- ❌ボタン -->
-                <button id="btn-self-wrong" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="間違えた">
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-                <!-- ⭕ボタン (アイコンサイズを w-5 h-5 に完全に統一してバグを解消) -->
-                <button id="btn-self-correct" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="合ってた">
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <circle cx="12" cy="12" r="8" />
-                  </svg>
-                </button>
-              </div>
-
-              <!-- 書き直し決定・消去ボタン（中央横並び・細長・アイコンのみ) -->
-              <div id="retype-action-buttons" class="hidden flex justify-center space-x-4 pointer-events-auto">
-                <!-- 消去ボタン -->
-                <button id="btn-clear-retype-canvas" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="消去">
+            <!-- 自己採点操作ボタン群 (3つのボタンに完全統合。デッドゾーン防止のためコンテナは pointer-events-none) -->
+            <div id="review-control-container" class="p-2 md:p-4 mt-auto pointer-events-none flex justify-center">
+              <div class="flex justify-center space-x-4 pointer-events-none">
+                
+                <!-- 🗑️ 全消去ボタン -->
+                <button id="btn-clear-review-canvas" class="pointer-events-auto w-24 md:w-28 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="消去">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
-                <!-- 決定ボタン -->
-                <button id="btn-submit-retype" class="w-28 md:w-36 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black text-xs font-bold rounded-none transition-colors shadow-sm focus:outline-none" title="決定">
+                
+                <!-- ❌間違えた（書き直した後にこれを押す）ボタン -->
+                <button id="btn-self-wrong" class="pointer-events-auto w-28 md:w-32 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="間違えた">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
-              </div>
 
+                <!-- ⭕合ってたボタン -->
+                <button id="btn-self-correct" class="pointer-events-auto w-28 md:w-32 h-9 md:h-10 flex items-center justify-center bg-white hover:bg-slate-50 text-black border border-black transition-colors shadow-sm focus:outline-none rounded-none" title="合ってた">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="8" />
+                  </svg>
+                </button>
+
+              </div>
             </div>
           </div>
         </section>
@@ -324,7 +315,7 @@
           <p class="pl-3">問題が表示されます。画面全体が手書きキャンバスになっており、自由に解答を書き込めます。書き終わったら「決定」ボタンを押します。</p>
 
           <p class="font-bold">4. 自己採点と間違え直し</p>
-          <p class="pl-3">自分の書いた回答が画面に薄く残り、模範解答が表示されます。合っていれば「⭕」、間違っていれば「❌」を押します。「❌」を押しても書いた内容は消去されないため、解説と照らし合わせて間違えたところをその場で見直して書き加えることができます。</p>
+          <p class="pl-3">自分の書いた解答が表示されます。「合ってた（⭕）」ボタンを押すと正解として次に進みます。「間違えた（❌）」場合は、その場でキャンバスを消去して書き直すか、上からそのまま正しい解答を書き加えたうえで、「間違えた（❌）」ボタンを押して次に進みます（間違えた問題は、後から再度自動テストされます）。</p>
 
           <p class="font-bold">5. 苦手克服の無限ループ</p>
           <p class="pl-3">間違えた問題がある場合、その問題だけで再びテストが始まります。グループ分割している場合は、そのグループ内の問題をすべて完璧にするまでループします。完全にクリアすると自動でインポート画面へ滑らかに戻ります。</p>
@@ -470,7 +461,7 @@
       if (isInterrupted || hasLastData) {
         restartLastContainer.classList.remove('hidden');
         
-        // ★半透明無効化の修正
+        // 半透明無効化の修正
         // 中断データがない（クリア済み）場合でも、「同じ問題を解く」ボタンがあれば非表示にせず、
         // 半透明（opacity-30, pointer-events-none）にして無効化状態で表示維持します。
         btnResumeLast.classList.remove('hidden');
@@ -600,10 +591,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     const normalReviewButtons = document.getElementById('normal-review-buttons');
     const btnSelfCorrect = document.getElementById('btn-self-correct');
     const btnSelfWrong = document.getElementById('btn-self-wrong');
-    
-    const retypeActionButtons = document.getElementById('retype-action-buttons');
-    const btnClearRetypeCanvas = document.getElementById('btn-clear-retype-canvas');
-    const btnSubmitRetype = document.getElementById('btn-submit-retype');
+    const btnClearReviewCanvas = document.getElementById('btn-clear-review-canvas');
 
     // ペンコントロール関連要素
     const sizePickerButtons = document.querySelectorAll('.size-picker-btn');
@@ -620,8 +608,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         this.canvas = canvasElement;
         this.ctx = this.canvas.getContext('2d');
         
-        // ★各ポインターの最新描画座標を保持するマップ { pointerId: { lastX, lastY } }
-        // これによって指、ペン、手のひらが同時に画面に触れても、それぞれ別個に描画が並列処理されます。
+        // 各ポインターの最新描画座標を保持するマップ { pointerId: { lastX, lastY } }
         this.activePointers = new Map();
 
         // Pointer Events による一元化
@@ -632,8 +619,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         window.addEventListener('pointerup', (e) => this.stopDrawing(e));
         window.addEventListener('pointercancel', (e) => this.stopDrawing(e));
 
-        // ★iOS/SafariにおけるPointer Eventの強制キャンセル（pointercancel）を防ぐ極めて重要な処置
-        // タッチ開始時・移動時のスクロールやジェスチャー判定を強制ブロックすることで、Pointerイベントが途切れるバグを根本から治療します。
+        // iOS/SafariにおけるPointer Eventの強制キャンセル（pointercancel）を防ぐ極めて重要な処置
         this.canvas.addEventListener('touchstart', (e) => {
           if (currentPhase !== 'import' && !isTransitioning) {
             e.preventDefault();
@@ -716,73 +702,76 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       }
 
       startDrawing(e) {
-        // インポート時、または一巡アニメーション中は反応しない
         if (currentPhase === 'import' || isTransitioning) return;
-
-        // ★【高速化＆かすれ対策の核心】
-        // モバイルブラウザによる「スクロール」「ダブルタップズーム」等のディレイ（約150〜300msのジェスチャー判定待機）を
-        // 完全にキャンセルし、画面に触れた瞬間に0ミリ秒で即座に描き始められるようにします。
         e.preventDefault();
 
         const pos = this.getPointerPos(e);
-        
-        // ポインターIDごとに個別の開始点をマップに登録。
         this.activePointers.set(e.pointerId, { lastX: pos.x, lastY: pos.y });
       }
 
       draw(e) {
         if (currentPhase === 'import' || isTransitioning) return;
 
-        // ★【レスキュー（フェールセーフ）ロジックの実装】
-        // pointerdown が発火しなかった（取りこぼされた）場合でも、pointermove 時時点でボタンが押されていれば、
-        // その瞬間の位置を最初の点としてマップに即時自動追加します。
-        // これにより「上げ下げ直すまで書けない」状態が完全に解消されます。
+        // 【レスキュー（フェールセーフ）ロジックの実装】
         if (!this.activePointers.has(e.pointerId) && e.buttons > 0) {
           const pos = this.getPointerPos(e);
           this.activePointers.set(e.pointerId, { lastX: pos.x, lastY: pos.y });
-          if (currentPhase === 'test' && currentList[currentIndex]) {
+          if (currentList[currentIndex]) {
             userHasDrawn[currentList[currentIndex].id] = true;
           }
         }
         
-        // 登録されていない不要なポインター入力は完全に無視する
         if (!this.activePointers.has(e.pointerId)) return;
-
-        // ★描き始めやストローク中のかすれを無くすため、ジェスチャー動作を完全に無効化
         e.preventDefault();
 
         const pointerState = this.activePointers.get(e.pointerId);
 
-        // 高速ストローク・間引きゼロ補正システム
-        const coalescedEvents = (e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(pointerState.lastX, pointerState.lastY);
+        // ★2重描画バグの修正 ＆ ペン/指による描線の滑らかさの自動切り替え
+        if (e.pointerType === 'pen') {
+          // ペンの場合は、間引かれた生イベントをすべて回収して極限までなめらかな曲線に補正
+          const coalescedEvents = (e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
+          
+          this.ctx.beginPath();
+          this.ctx.moveTo(pointerState.lastX, pointerState.lastY);
 
-        let currentX = pointerState.lastX;
-        let currentY = pointerState.lastY;
+          let currentX = pointerState.lastX;
+          let currentY = pointerState.lastY;
 
-        for (const ev of coalescedEvents) {
-          const pos = this.getPointerPos(ev);
+          for (const ev of coalescedEvents) {
+            const pos = this.getPointerPos(ev);
+            this.ctx.lineTo(pos.x, pos.y);
+            currentX = pos.x;
+            currentY = pos.y;
+          }
+
+          this.ctx.stroke();
+          pointerState.lastX = currentX;
+          pointerState.lastY = currentY;
+        } else {
+          // 指やマウスの場合は、そのままのカクカクとした生々しいニュアンスのストロークを忠実に描画
+          const pos = this.getPointerPos(e);
+          this.ctx.beginPath();
+          this.ctx.moveTo(pointerState.lastX, pointerState.lastY);
           this.ctx.lineTo(pos.x, pos.y);
-          currentX = pos.x;
-          currentY = pos.y;
+          this.ctx.stroke();
+
+          pointerState.lastX = pos.x;
+          pointerState.lastY = pos.y;
         }
 
-        this.ctx.stroke();
-
-        // ポインター状態の終了座標を今回のストロークの終点に更新
-        pointerState.lastX = currentX;
-        pointerState.lastY = currentY;
-
-        // ★追加：線が実際に1点でも描かれた場合、手書き有り状態として記録
-        if (currentPhase === 'test' && currentList[currentIndex]) {
+        // 手書き有り状態として記録
+        if (currentList[currentIndex]) {
           userHasDrawn[currentList[currentIndex].id] = true;
+          
+          // ★丸付け画面でお絵描きした場合は、⭕ボタンの無効化状態を動的かつ即座に解除
+          if (currentPhase === 'review') {
+            btnSelfCorrect.classList.remove('opacity-30', 'pointer-events-none');
+            btnSelfCorrect.disabled = false;
+          }
         }
       }
 
       stopDrawing(e) {
-        // ポインターが画面から離れたらマップから削除し、安全にストロークを終了
         if (e && this.activePointers.has(e.pointerId)) {
           this.activePointers.delete(e.pointerId);
         }
@@ -790,6 +779,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
 
       clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.activePointers.clear(); // 全消し後はポインター情報を即時完全初期化し、かすれ不具合を防ぐ
       }
 
       // ペン設定 of 定的適用
@@ -809,9 +799,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         if (!dataURL) return;
         const img = new Image();
         img.onload = () => {
-          // 高精細化（DPR）に伴い、表示サイズに合わせて等倍で描き戻す
           const dpr = window.devicePixelRatio || 1;
-          // 描き戻し時も、描画バッファサイズが有効である場合のみ drawImage を安全に実行する
           if (this.canvas.width > 0 && this.canvas.height > 0) {
             try {
               this.ctx.drawImage(img, 0, 0, this.canvas.width / dpr, this.canvas.height / dpr);
@@ -819,7 +807,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
               console.warn("Canvas drawImage loadState failed:", err);
             }
           }
-          this.applyPenConfig(); // ロード後も現在のペン構成を上書き適用
+          this.applyPenConfig();
         };
         img.src = dataURL;
       }
@@ -842,9 +830,9 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
           if (char === '"') {
             if (nextChar === '"') {
               cell += '"';
-              i++; // エスケープされたダブルクォーテーション
+              i++;
             } else {
-              insideQuote = false; // 閉じダブルクォーテーション
+              insideQuote = false;
             }
           } else {
             cell += char;
@@ -863,7 +851,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
             }
             row = [];
             if (char === '\r' && nextChar === '\n') {
-              i++; // \r\n の改行ペアをスキップ
+              i++;
             }
           } else {
             cell += char;
@@ -871,7 +859,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         }
       }
       
-      // 未処理の残りのセルをプッシュ
       if (cell !== '' || row.length > 0) {
         row.push(cell.trim());
         if (row.length > 0 && (row.length > 1 || row[0] !== '')) {
@@ -879,7 +866,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         }
       }
       
-      // 暗記データ構造 ({ id, question, answer, commentary }) に整形
       return result.map(parts => {
         if (parts.length >= 2 && parts[0] && parts[1]) {
           return {
@@ -917,36 +903,33 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         updateImportScreenButtons();
       } else if (newPhase === 'test') {
         phaseTest.classList.remove('hidden');
-        leftControlsContainer.classList.remove('hidden'); // テスト画面でコントローラーを表示
+        leftControlsContainer.classList.remove('hidden'); // コントローラーを表示
         initTestPhase();
       } else if (newPhase === 'review') {
         phaseReview.classList.remove('hidden');
-        leftControlsContainer.classList.remove('hidden'); // 丸付け画面でコントローラーを表示
+        leftControlsContainer.classList.remove('hidden'); // コントローラーを表示
         initReviewPhase();
       }
     }
 
-    // 直接インポート画面へフェードアウト＆フェードイン
+    // 直接インポート画面へ戻る (全問正解などの完了トリガー時)
     function triggerDirectAutoRestart() {
-      clearInterruptedState(); // 完了したので中断を削除
-      appBody.classList.add('fade-out');
-      setTimeout(() => {
+      // ★全問正解完了時も、ご指示通りの500msの白画面キープによる確実なバッファトランジションを通します。
+      transitionPhase(() => {
+        clearInterruptedState(); // 完了したので中断を削除
         originalList = [];
         currentList = [];
         userAnswers = {};
-        userHasDrawn = {}; // 手書き有無ログのリセット
+        userHasDrawn = {};
         wrongQuestions = [];
         isFirstRound = true;
         studyGroups = [];
         currentGroupIndex = 0;
-
         switchPhase('import');
-        appBody.classList.remove('fade-out');
-        isTransitioning = false; 
-      }, 100); 
+      });
     }
 
-    // ★非同期タイマーと描画同期（rAF）の厳密なシーケンス設計（ご指示通り0.5秒 = 500ms幅に完全に拡張）
+    // 非同期タイマーと描画同期（rAF）の厳密なシーケンス設計（ご指示通り500ms幅に完全調整）
     function transitionPhase(actionAfterFadeOut) {
       if (isTransitioning) return; 
       isTransitioning = true; 
@@ -955,7 +938,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       setTimeout(() => {
         appBody.classList.add('fade-out'); // パッと真っ白にする
 
-        // 2. ブラウザが真っ白に描画し終えた次のフレームで裏データを安全に書き換える（タイマー侵食の完全防止）
+        // 2. ブラウザが真っ白に描画し終えた次のフレームで裏データを安全に書き換える
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             actionAfterFadeOut();
@@ -979,10 +962,10 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       // 1行目のグループ進捗（n > 0 かつ、かつ全体のグループ数が 1 より多い時のみ表示）
       if (settingGroupSize > 0 && totalGroups > 1) {
         // グループバーの表示変更：
-        // 完了したところ（現在よりも前のグループ）を緑色、今取り組んでいる進行中の黄色は使用しない（非表示）
+        // 完了したところを緑色、今取り組んでいる進行中の黄色は使用しない
         const completedGroups = currentGroupIndex; 
         const confirmedPercent = (completedGroups / totalGroups) * 100;
-        const currentPercent = confirmedPercent; // 黄色の現在進行位置を緑の確定位置と同一にすることで、黄色を排除
+        const currentPercent = confirmedPercent;
 
         if (mode === 'test') {
           testGroupBarContainer.classList.remove('hidden');
@@ -1010,25 +993,19 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
           reviewGroupText.innerText = `グループ ${completedGroups + 1} / ${totalGroups}`;
         }
       } else {
-        // 分割設定が0（分割なし）、または全体のグループが1つの場合は1行目のグループバーを完全に隠す
         testGroupBarContainer.classList.add('hidden');
         testGroupTextContainer.classList.add('hidden');
         reviewGroupBarContainer.classList.add('hidden');
         reviewGroupTextContainer.classList.add('hidden');
       }
 
-      // 2行目の問題進捗（グループ全体の全問題に対する定着緑と現在進行黄色）
+      // 2行目の問題進捗
       const currentGroupQuestions = studyGroups[currentGroupIndex] || [];
       const N = currentGroupQuestions.length;
       if (N === 0) return;
 
       const activeCurrent = currentIndex;
-      
-      // 進捗ロジックの修正：
-      // すでに正解して、次の間違え直しリスト（currentList）に入っていないクリア済みの問題数
       const confirmedCount = N - currentList.length;
-      
-      // すでに正解した部分を緑色、正解していない問題の中での現在の回答進捗を黄色で描画
       const confirmedPercent = (confirmedCount / N) * 100;
       const currentPercent = ((confirmedCount + activeCurrent) / N) * 100;
 
@@ -1063,18 +1040,15 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     function startLearning(problemData) {
       clearInterruptedState(); // 最初からやる場合は中断を破棄
 
-      // 設定 of 取得
       const shouldShuffle = checkRandom.checked;
       settingGroupSize = Math.max(0, parseInt(inputGroupSize.value) || 0);
 
-      // 元問題リストにデータを注入
       originalList = [...problemData];
 
       if (shouldShuffle) {
         originalList = shuffleArray(originalList);
       }
 
-      // n問ずつのグループ（塊）に分割
       studyGroups = [];
       if (settingGroupSize === 0) {
         studyGroups.push(originalList);
@@ -1088,7 +1062,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       currentList = [...studyGroups[currentGroupIndex]]; // 最初のグループから開始
 
       userAnswers = {};
-      userHasDrawn = {}; // 手書き有無ログのリセット
+      userHasDrawn = {}; 
       wrongQuestions = [];
       isFirstRound = true;
 
@@ -1124,7 +1098,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         isFirstRound = state.isFirstRound !== undefined ? state.isFirstRound : true;
         settingGroupSize = state.settingGroupSize || 0;
 
-        // 進捗キャッシュの初期化
         lastTestConfirmedPercent = -1;
         lastTestCurrentPercent = -1;
         lastReviewConfirmedPercent = -1;
@@ -1134,7 +1107,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         lastReviewGroupConfirmedPercent = -1;
         lastReviewGroupCurrentPercent = -1;
 
-        // 復元描画の実行
         phaseImport.classList.add('hidden');
         phaseTest.classList.add('hidden');
         phaseReview.classList.add('hidden');
@@ -1143,7 +1115,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
           phaseTest.classList.remove('hidden');
           leftControlsContainer.classList.remove('hidden');
           showQuestion();
-          // 手書き解答の再復元
           const activeQ = currentList[currentIndex];
           if (activeQ && userAnswers[activeQ.id]) {
             globalCanvas.loadState(userAnswers[activeQ.id]);
@@ -1188,11 +1159,9 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
           return;
         }
 
-        // 次回再開時のために生データを完全にキャッシュ保存
         lastUploadedRawData = [...mergedData];
         localStorage.setItem(STORAGE_KEY_LAST_RAW_DATA, JSON.stringify(lastUploadedRawData));
 
-        // 学習を開始
         startLearning(mergedData);
 
       } catch (error) {
@@ -1226,7 +1195,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     });
 
     btnUseSample.addEventListener('click', () => {
-      // サンプルデータをパースして直接キャッシュデータとしても登録
       const parsedSample = parseCSV(sampleCSV);
       lastUploadedRawData = [...parsedSample];
       localStorage.setItem(STORAGE_KEY_LAST_RAW_DATA, JSON.stringify(lastUploadedRawData));
@@ -1241,54 +1209,25 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       }
     });
 
-    // 前回と同じ問題で最初からやり直す
     btnRestartLast.addEventListener('click', () => {
       if (lastUploadedRawData && lastUploadedRawData.length > 0) {
         startLearning(lastUploadedRawData);
       }
     });
 
-    // 中断データからやり直す（続きから再開する）
     btnResumeLast.addEventListener('click', () => {
       resumeLearning();
     });
 
-    // ヘルプモーダルイベント設定
-    btnShowHelp.addEventListener('click', () => {
-      helpModal.classList.remove('hidden');
-    });
-
-    btnCloseHelp.addEventListener('click', () => {
-      helpModal.classList.add('hidden');
-    });
-
-    // モーダルの背景クリックで閉じる処理
-    helpModal.addEventListener('click', (e) => {
-      if (e.target === helpModal) {
-        helpModal.classList.add('hidden');
-      }
-    });
-
-    // 設定変更イベント時の自動保存呼び出し
-    checkRandom.addEventListener('change', () => {
-      saveSettingsToLocalStorage();
-    });
-
-    inputGroupSize.addEventListener('change', () => {
-      saveSettingsToLocalStorage();
-    });
-
-    // --- 戻る & スキップ コントロール処理 (左側コントロールに完全統一) ---
+    // --- 戻る & スキップ コントロール処理 ---
     function handleBackToImport() {
       if (isTransitioning) return;
-      // 現在の進行状態を手書きデータを含めてローカルストレージへ退避セーブ
       saveInterruptedStateToLocalStorage();
       transitionPhase(() => {
         switchPhase('import');
       });
     }
 
-    // インテリジェントなスキップ処理
     function handleGroupSkip() {
       if (isTransitioning) return;
 
@@ -1296,17 +1235,14 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       const N = currentGroupQuestions.length;
       if (N === 0) return;
 
-      // 正解した（＝間違え直しリスト currentList に含まれていない）問題数
       const confirmedCount = N - currentList.length;
 
       if (confirmedCount === 0) {
-        // 正解した問題が一問も無かった場合 -> 次のグループへ
         transitionPhase(() => {
           goToNextGroupOrFinish();
-          saveInterruptedStateToLocalStorage(); // スキップにともなう進捗オートセーブ
+          saveInterruptedStateToLocalStorage();
         });
       } else {
-        // 正解した問題が一問でもあった場合 -> 一問も正解してない状態に戻してやり直す
         transitionPhase(() => {
           currentGroupQuestions.forEach(q => {
             delete userAnswers[q.id];
@@ -1315,7 +1251,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
           currentList = [...currentGroupQuestions];
           isFirstRound = true;
           switchPhase('test');
-          saveInterruptedStateToLocalStorage(); // スキップにともなう進捗オートセーブ
+          saveInterruptedStateToLocalStorage();
         });
       }
     }
@@ -1330,7 +1266,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       showQuestion();
     }
 
-    // 質問表示 (フェードアニメーションなし、パッと即時更新)
     function showQuestion() {
       updateTaskProgress('test');
 
@@ -1342,16 +1277,14 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       globalCanvas.resizeCanvas();
     }
 
-    // テストキャンバス消去
     btnClearTestCanvas.addEventListener('click', () => {
       if (isTransitioning) return; 
       globalCanvas.clear();
       if (currentList[currentIndex]) {
-        userHasDrawn[currentList[currentIndex].id] = false; // 消去時はお絵描き有無ログをfalseにする
+        userHasDrawn[currentList[currentIndex].id] = false; // 消去時はお絵描き記録をfalseに
       }
     });
 
-    // テスト決定ボタン
     btnSubmitTest.addEventListener('click', () => {
       if (isTransitioning) return; 
       
@@ -1367,7 +1300,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       if (currentIndex < currentList.length) {
         showQuestion();
       } else {
-        // グループ一巡（テスト）終了時
         transitionPhase(() => {
           switchPhase('review');
         });
@@ -1375,16 +1307,12 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     });
 
     // --- 3. 振り返り・セルフチェック (Review Phase) ---
-    let isRetypingMode = false; 
-    
     function initReviewPhase() {
       currentIndex = 0;
       wrongQuestions = [];
-      isRetypingMode = false;
       showReviewItem();
     }
 
-    // 質問および手書きの表示
     function showReviewItem() {
       updateTaskProgress('review');
 
@@ -1405,11 +1333,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
         reviewCommentaryBox.style.display = 'none';
       }
 
-      normalReviewButtons.classList.remove('hidden');
-      retypeActionButtons.classList.add('hidden');
-      isRetypingMode = false;
-
-      // ★手書き解答が一切ない（線が一本も書かれていない）場合は丸（⭕）ボタンを半透明にしクリック不可に制限
+      // 手書き解答が一切ない（線が一本も書かれていない）場合は丸（⭕）ボタンを半透明にしクリック不可に制限
       const hasDrawn = userHasDrawn[activeQuestion.id] === true;
       if (hasDrawn) {
         btnSelfCorrect.classList.remove('opacity-30', 'pointer-events-none');
@@ -1420,33 +1344,36 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       }
     }
 
+    // ⭕ボタン（合ってた）押下時
     btnSelfCorrect.addEventListener('click', () => {
       if (isTransitioning) return; 
       goToNextReviewItem();
     });
 
+    // ❌ボタン（間違えた ＆ 手書き直しを終えた状態）押下時
     btnSelfWrong.addEventListener('click', () => {
       if (isTransitioning) return; 
       const activeQuestion = currentList[currentIndex];
       if (!activeQuestion) return;
 
+      // ★新3ボタン化対応：書き直した手書き結果を上書きして答え合わせデータにマージ保存
+      userAnswers[activeQuestion.id] = globalCanvas.getDataURL();
       wrongQuestions.push(activeQuestion);
-      isRetypingMode = true;
 
-      // ★間違い直し時に書いたものが消去されないよう、globalCanvas.clear() の呼び出しを完全に削除しました
-
-      normalReviewButtons.classList.add('hidden');
-      retypeActionButtons.classList.remove('hidden');
+      goToNextReviewItem();
     });
 
-    btnClearRetypeCanvas.addEventListener('click', () => {
+    // 🗑️丸付け画面での部分消去・画面全消しボタン
+    btnClearReviewCanvas.addEventListener('click', () => {
       if (isTransitioning) return; 
       globalCanvas.clear();
-    });
-
-    btnSubmitRetype.addEventListener('click', () => {
-      if (isTransitioning) return; 
-      goToNextReviewItem();
+      const activeQuestion = currentList[currentIndex];
+      if (activeQuestion) {
+        userHasDrawn[activeQuestion.id] = false; // 消去されたためお絵描きフラグを初期化
+        // ⭕ボタンを即座に非活性状態にする（未回答の不正防止）
+        btnSelfCorrect.classList.add('opacity-30', 'pointer-events-none');
+        btnSelfCorrect.disabled = true;
+      }
     });
 
     function goToNextReviewItem() {
@@ -1457,7 +1384,6 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
       if (currentIndex < currentList.length) {
         showReviewItem();
       } else {
-        // グループ一巡（丸付け）終了時
         transitionPhase(() => {
           evaluateRoundResult();
         });
@@ -1467,18 +1393,13 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     // --- 4. ラウンド判定フェーズ (Decision Phase) ---
     function evaluateRoundResult() {
       if (wrongQuestions.length > 0) {
-        // グループ内での間違え直し再テストループ
         currentList = [...wrongQuestions];
         isFirstRound = false;
         switchPhase('test');
       } else {
-        // 現在のグループがすべて完璧になった場合
         if (isFirstRound) {
-          // グループ内初回ラウンドで一発全問正解
           goToNextGroupOrFinish();
         } else {
-          // 間違え直し再テストを経て、現在のグループの問題がすべて答えられるようになった
-          // ➔ 塊がしっかり定着したかを確認するため、現在のグループの全問題をもう一度最初から解き直させる
           currentList = [...studyGroups[currentGroupIndex]];
           isFirstRound = true;
           switchPhase('test');
@@ -1491,13 +1412,11 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
     function goToNextGroupOrFinish() {
       currentGroupIndex++;
       if (currentGroupIndex < studyGroups.length) {
-        // 次の未学習のグループがある場合、次のグループを開始
         currentList = [...studyGroups[currentGroupIndex]];
         isFirstRound = true;
         switchPhase('test');
         saveInterruptedStateToLocalStorage(); // 進行 of オートセーブ
       } else {
-        // すべてのグループ（全問題）が完璧になった瞬間、インポート画面へ戻る
         triggerDirectAutoRestart();
       }
     }
@@ -1511,7 +1430,7 @@ Cherry,さくらんぼ,サクラ属 of 落葉高木。`;
           b.classList.add('border', 'border-slate-300');
         });
         this.classList.remove('border', 'border-slate-300');
-        this.ctx = globalCanvas.ctx; // 変数同期保証用
+        this.ctx = globalCanvas.ctx; 
         this.classList.add('border-2', 'border-black');
 
         currentPenWidth = parseFloat(this.getAttribute('data-size'));
